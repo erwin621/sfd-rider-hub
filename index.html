@@ -1,1 +1,329 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SFD Rider - Location Hub</title>
 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background-color: #121212; color: #e0e0e0; padding: 10px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+
+        .container { width: 100%; max-width: 480px; background-color: #1e1e1e; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); padding: 20px; margin-top: 10px; }
+        .container-app { border-radius: 0 0 12px 12px; margin-top: 0; }
+
+        /* LOGIN SCREEN STYLES */
+        #loginScreen { display: block; text-align: center; }
+        #loginScreen h2 { color: #2979ff; margin-bottom: 20px; }
+
+        /* MAIN APP VIEW (Nakatago sa simula hangga't walang login) */
+        #mainApp { display: none; width: 100%; max-width: 480px; }
+
+        /* USER CREDITS BAR */
+        .user-bar { display: flex; justify-content: space-between; align-items: center; background-color: #2a2a2a; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333; }
+        .credit-count { background-color: #00e676; color: #000; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }
+        .credit-count.low { background-color: #ff5252; color: #fff; }
+
+        /* TABS STYLES */
+        .tabs-container { display: flex; width: 100%; }
+        .tab-btn { flex: 1; padding: 15px 5px; font-size: 0.95rem; font-weight: bold; background-color: #2a2a2a; color: #888; border: none; cursor: pointer; text-align: center; outline: none; }
+        .tab-btn:first-child { border-radius: 12px 0 0 0; }
+        .tab-btn:last-child { border-radius: 0 12px 0 0; }
+        .tab-btn.active { background-color: #1e1e1e; color: #00e676; border-bottom: 3px solid #00e676; }
+        .tab-btn.active.find-tab { color: #ff9100; border-bottom: 3px solid #ff9100; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* FORMS AT BUTTONS */
+        .form-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: #b0b0b0; font-weight: bold; }
+        input[type="text"] { width: 100%; padding: 14px; background-color: #2a2a2a; border: 2px solid #444; border-radius: 8px; color: #fff; font-size: 1rem; outline: none; }
+        input[type="text"]:focus { border-color: #2979ff; }
+        #sellerName:focus { border-color: #00e676; }
+        #searchName:focus { border-color: #ff9100; }
+        input[readonly] { background-color: #222; color: #888; border-color: #333; }
+
+        .btn { display: block; width: 100%; padding: 16px; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 12px; text-align: center; text-decoration: none; }
+        .btn-login { background-color: #2979ff; color: #fff; }
+        .btn-gps { background-color: #2979ff; color: #fff; }
+        .btn-submit { background-color: #00e676; color: #000; }
+        .btn-search { background-color: #ff9100; color: #000; }
+        .btn-maps { background-color: #ea4335; color: white; margin-top: 10px; display: inline-block; width: 100%; }
+
+        #status, #searchStatus, #loginStatus { text-align: center; font-size: 0.9rem; margin-top: 10px; color: #ffeb3b; }
+
+        /* SEARCH RESULTS */
+        .result-box { background-color: #2a2a2a; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #444; text-align: left; }
+        .result-title { font-weight: bold; color: #fff; font-size: 1.2rem; }
+        .distance-badge { display: inline-block; background-color: #ff9100; color: #000; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; margin-top: 5px; }
+        .map-preview { height: 180px; width: 100%; border-radius: 8px; margin-top: 10px; z-index: 1; border: 2px solid #111; }
+    </style>
+</head>
+<body>
+
+    <div id="loginScreen" class="container">
+        <h2>🔑 SFD Rider Access</h2>
+        <div class="form-group">
+            <label>I-type ang iyong Rider ID / Phone No.</label>
+            <input type="text" id="riderIdInput" placeholder="Halimbawa: SFD-001 o Mobile Number">
+        </div>
+        <div class="form-group">
+            <label>Pangalan mo (Opsyonal para sa bago)</label>
+            <input type="text" id="riderNameInput" placeholder="I-type ang iyong buong pangalan">
+        </div>
+        <button class="btn btn-login" onclick="loginRider()">MASOK SA APPLICATION</button>
+        <div id="loginStatus"></div>
+    </div>
+
+    <div id="mainApp">
+        <div class="user-bar">
+            <div>Rider: <strong id="lblRiderName" style="color:#00e676;">-</strong></div>
+            <div>Credits: <span id="lblCredits" class="credit-count">0</span></div>
+        </div>
+
+        <div class="tabs-container">
+            <button class="tab-btn active" onclick="switchTab(event, 'encodeSection')">📍 Encode Location</button>
+            <button class="tab-btn find-tab" onclick="switchTab(event, 'findSection')">🔍 Find Seller</button>
+        </div>
+
+        <div class="container container-app">
+            <div id="encodeSection" class="tab-content active">
+                <div class="form-group">
+                    <label>Pangalan ng Seller / Shop</label>
+                    <input type="text" id="sellerName" placeholder="I-type ang pangalan ng nag-benta...">
+                </div>
+                <button class="btn btn-gps" onclick="getLocation()">📡 KUNIN ANG LOKASYON MO</button>
+                <div class="form-group"><input type="text" id="latitude" placeholder="Latitude" readonly></div>
+                <div class="form-group"><input type="text" id="longitude" placeholder="Longitude" readonly></div>
+                <button class="btn btn-submit" onclick="saveToDatabase()">💾 I-SAVE (+2 CREDITS)</button>
+                <div id="status">Handa nang kumuha ng lokasyon...</div>
+            </div>
+
+            <div id="findSection" class="tab-content">
+                <div class="form-group">
+                    <label>Sino ang hinahanap mong seller?</label>
+                    <input type="text" id="searchName" placeholder="I-type ang Pangalan ng Seller">
+                </div>
+                <button class="btn btn-search" onclick="searchSeller()">🔍 HANAPIN NA (-1 CREDIT)</button>
+                <div id="searchStatus"></div>
+                <div id="searchResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentRiderId = "";
+
+        // ==========================================
+        // 1. LOGIN PROCESS
+        // ==========================================
+        async function loginRider() {
+            const riderId = document.getElementById('riderIdInput').value.trim();
+            const riderName = document.getElementById('riderNameInput').value.trim();
+            const loginStatus = document.getElementById('loginStatus');
+
+            if (!riderId) {
+                loginStatus.innerHTML = "⚠️ Paki-sulat ang iyong Rider ID.";
+                return;
+            }
+
+            loginStatus.innerHTML = "⏳ Kumokonekta...";
+
+            try {
+                const response = await fetch('/api/rider-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ riderId, riderName })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentRiderId = data.rider_id;
+                    document.getElementById('lblRiderName').innerText = data.name;
+                    updateCreditUI(data.credits);
+
+                    // Ipagpalit ang screen view
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('mainApp').style.display = 'block';
+                } else {
+                    loginStatus.innerHTML = "❌ Error: " + data.error;
+                }
+            } catch (e) {
+                loginStatus.innerHTML = "❌ Hindi makakonekta sa server.";
+            }
+        }
+
+        function updateCreditUI(credits) {
+            const el = document.getElementById('lblCredits');
+            el.innerText = credits;
+            if (credits <= 0) {
+                el.className = "credit-count low";
+            } else {
+                el.className = "credit-count";
+            }
+        }
+
+        // TABS NAVIGATION
+        function switchTab(event, sectionId) {
+            document.querySelectorAll('.tab-content').forEach(sec => sec.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // ==========================================
+        // 2. LOCATION ENCODING (+2 Credits)
+        // ==========================================
+        function getLocation() {
+            const statusText = document.getElementById('status');
+            if (!navigator.geolocation) { statusText.innerHTML = "❌ Walang GPS."; return; }
+            statusText.innerHTML = "⏳ Kinukuha ang lokasyon...";
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    document.getElementById('latitude').value = position.coords.latitude;
+                    document.getElementById('longitude').value = position.coords.longitude;
+                    statusText.innerHTML = "✅ Lokasyon nakuha!";
+                    statusText.style.color = "#00e676";
+                },
+                (error) => { statusText.innerHTML = "❌ Error sa GPS."; statusText.style.color = "#ff5252"; },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        async function saveToDatabase() {
+            const seller = document.getElementById('sellerName').value.trim();
+            const lat = document.getElementById('latitude').value;
+            const lng = document.getElementById('longitude').value;
+            const statusText = document.getElementById('status');
+
+            if (!seller || !lat || !lng) { statusText.innerHTML = "⚠️ Kulang ang detalye."; return; }
+
+            try {
+                const response = await fetch('/api/save-location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ seller, lat, lng, riderId: currentRiderId })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusText.innerHTML = "✅ Nai-save na! Nakakuha ka ng +2 Credits.";
+                    statusText.style.color = "#00e676";
+                    updateCreditUI(data.totalCredits);
+
+                    document.getElementById('sellerName').value = "";
+                    document.getElementById('latitude').value = "";
+                    document.getElementById('longitude').value = "";
+                } else {
+                    statusText.innerHTML = data.error;
+                    statusText.style.color = "#ff5252";
+                }
+            } catch (e) { statusText.innerHTML = " ❌ Error sa server."; }
+        }
+
+        // HAVERSINE DISTANCE MATH
+        function getDistanceKm(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * (Math.PI / 180);
+            const dLon = (lon2 - lon1) * (Math.PI / 180);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return (R * c).toFixed(2);
+        }
+
+        // ==========================================
+        // 3. SEARCH SELLER (-1 Credit)
+        // ==========================================
+        function searchSeller() {
+            const searchName = document.getElementById('searchName').value.trim();
+            const searchStatus = document.getElementById('searchStatus');
+            const resultsContainer = document.getElementById('searchResults');
+
+            resultsContainer.innerHTML = "";
+            if (!searchName) { searchStatus.innerHTML = "⚠️ Mag-type muna ng pangalan."; return; }
+
+            searchStatus.innerHTML = "📍 Kinukuha ang lokasyon mo para sa mapa...";
+            searchStatus.style.color = "#ffeb3b";
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const riderLat = position.coords.latitude;
+                const riderLng = position.coords.longitude;
+
+                searchStatus.innerHTML = "⏳ Kinukumpirma ang iyong credit sa database...";
+
+                try {
+                    // Ipinapasa na natin ang pangalan at ang Rider ID ng naghahanap para masuri ang credit
+                    const response = await fetch(`/api/search-seller?name=${encodeURIComponent(searchName)}&riderId=${currentRiderId}`);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        searchStatus.innerHTML = data.error;
+                        searchStatus.style.color = "#ff5252";
+                        return;
+                    }
+
+                    // I-update agad ang natitirang credit ng rider sa interface
+                    updateCreditUI(data.remainingCredits);
+
+                    if (data.sellers.length === 0) {
+                        searchStatus.innerHTML = " ❌ Walang nahanap na ganyang kalapit na seller.";
+                        searchStatus.style.color = "#ff5252";
+                        return;
+                    }
+
+                    searchStatus.innerHTML = `✅ May nahanap na (${data.sellers.length}) na resulta!`;
+                    searchStatus.style.color = "#00e676";
+
+                    data.sellers.forEach((item, index) => {
+                        const distance = getDistanceKm(riderLat, riderLng, item.latitude, item.longitude);
+                        const mapId = `map-${index}`;
+
+                        const div = document.createElement('div');
+                        div.className = 'result-box';
+
+                        // FIX GOOGLE MAPS LINK ERROR: Direktang in-app/browser query link
+                        const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`;
+
+                        div.innerHTML = `
+                            <div class="result-title">🏪 ${item.seller_name}</div>
+                            <div class="distance-badge">🛵 ${distance} km ang layo</div>
+                            <div id="${mapId}" class="map-preview"></div>
+                            <a href="${googleMapsUrl}" target="_blank" class="btn btn-maps">
+                                🗺️ MAG-NAVIGATE SA GOOGLE MAPS
+                            </a>
+                        `;
+                        resultsContainer.appendChild(div);
+
+                        setTimeout(() => {
+                            const map = L.map(mapId);
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                attribution: '© OpenStreetMap'
+                            }).addTo(map);
+
+                            const riderMarker = L.marker([riderLat, riderLng]).addTo(map).bindPopup("IKAW");
+                            const sellerMarker = L.marker([item.latitude, item.longitude]).addTo(map).bindPopup("SELLER");
+
+                            const group = new L.featureGroup([riderMarker, sellerMarker]);
+                            map.fitBounds(group.getBounds(), { padding: [20, 20] });
+                        }, 200);
+                    });
+
+                } catch (error) {
+                    searchStatus.innerHTML = "❌ Error sa koneksyon sa server.";
+                    searchStatus.style.color = "#ff5252";
+                }
+
+            }, (error) => {
+                searchStatus.innerHTML = "❌ Kailangan ang iyong GPS para mag-search.";
+                searchStatus.style.color = "#ff5252";
+            }, { enableHighAccuracy: true });
+        }
+    </script>
+</body>
+</html>
