@@ -74,7 +74,36 @@
     0% { transform: scale(0.8); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
                    }
-            
+  /* 🔍 SEARCH AUTOCOMPLETE DROPDOWN STYLES */
+.search-wrapper { position: relative; margin-bottom: 15px; }
+.search-autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: #1e1e1e;
+    border: 1px solid #444;
+    border-radius: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 999;
+    display: none; /* Nakatago by default */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+.dropdown-suggestion-item {
+    padding: 14px;
+    color: #ffffff;
+    cursor: pointer;
+    text-align: left;
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 0.95rem;
+}
+.dropdown-suggestion-item:last-child { border-bottom: none; }
+.dropdown-suggestion-item:hover, .dropdown-suggestion-item:active {
+    background-color: #2a2a2a;
+    color: #00e676; /* Nagiging green kapag napili o napindot */
+}
+        
     </style>
 </head>
 <body>
@@ -118,10 +147,11 @@
             </div>
 
             <div id="findSection" class="tab-content">
-                <div class="form-group">
-                    <label>Sino ang hinahanap mong seller?</label>
-                    <input type="text" id="searchName" placeholder="I-type ang Pangalan ng Seller">
-                </div>
+                <div class="search-wrapper" style="position: relative; width: 100%;">
+                <input type="text" id="searchSeller" oninput="filterSellerDropdown()" placeholder="🔍 I-type ang pangalan ng seller..." autocomplete="off">
+                <div id="searchDropdown" class="search-autocomplete-dropdown"></div>
+            </div>
+                
                 <button class="btn btn-search" onclick="searchSeller()">🔍 HANAPIN NA (-1 CREDIT)</button>
                 <div id="searchStatus"></div>
                 <div id="searchResults"></div>
@@ -354,6 +384,57 @@
         function closeModal() {
     document.getElementById('successModal').style.display = "none";
         }
+        // Function para sa Searchable Dropdown
+function filterSellerDropdown() {
+    const input = document.getElementById('searchSeller').value.toLowerCase();
+    const dropdown = document.getElementById('searchDropdown');
+    
+    // Siguraduhing malinis ang lumang laman
+    dropdown.innerHTML = ''; 
+    
+    // Kung walang laman ang search bar, itago ang dropdown
+    if (input.trim() === '') {
+        dropdown.style.display = 'none';
+        return;
+    }
+    
+    // I-filter ang mga sellers mula sa iyong nakuhang data galing Supabase
+    // (Ipinagpalagay natin na ang pangalan ng array mo ng mga sellers ay 'allSellersData')
+    const matches = allSellersData.filter(seller => 
+        seller.seller_name.toLowerCase().includes(input)
+    );
+    
+    if (matches.length > 0) {
+        dropdown.style.display = 'block'; // Ipakita ang dropdown box
+        
+        matches.forEach(seller => {
+            const item = document.createElement('div');
+            item.className = 'dropdown-suggestion-item';
+            item.innerHTML = `📍 <strong>${seller.seller_name}</strong>`;
+            
+            // Kapag pinindot ng rider ang isang pangalan sa dropdown
+            item.onclick = function() {
+                document.getElementById('searchSeller').value = seller.seller_name;
+                dropdown.style.display = 'none'; // Isara ang dropdown
+                
+                // Dito mo tatawagin ang kasalukuyan mong function na nagpapakita ng mapa/coordinates
+                showSelectedSellerOnMap(seller); 
+            };
+            
+            dropdown.appendChild(item);
+        });
+    } else {
+        dropdown.style.display = 'none'; // Itago kung walang kaparehong pangalan
+    }
+}
+
+// Kusa ring isasara ang dropdown kapag pumindot ang rider sa labas ng search bar
+document.addEventListener('click', function(e) {
+    const wrapper = document.querySelector('.search-wrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+        document.getElementById('searchDropdown').style.display = 'none';
+    }
+});
         
     </script>
 </body>
