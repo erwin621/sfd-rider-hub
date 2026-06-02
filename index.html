@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SFD Rider Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #13131a;
+            --surface2: #1c1c27;
+            --border: #2a2a3a;
+            --border-light: #383850;
+            --green: #00f5a0;
+            --green-dim: rgba(0,245,160,0.12);
+            --orange: #ff7b2f;
+            --orange-dim: rgba(255,123,47,0.12);
+            --blue: #4d7cff;
+            --blue-dim: rgba(77,124,255,0.12);
+            --red: #ff4d6a;
+            --red-dim: rgba(255,77,106,0.12);
+            --text: #f0f0f8;
+            --text-muted: #6b6b8a;
+            --text-sub: #9898b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 0 40px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(ellipse, rgba(0,245,160,0.06) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ─── HEADER BAR ─── */
+        .app-header {
+            width: 100%;
+            max-width: 480px;
+            padding: 20px 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--green), #00b4ff);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .app-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: 1.25rem;
+            letter-spacing: -0.5px;
+        }
+
+        .app-title span { color: var(--green); }
+
+        /* ─── CONTAINERS ─── */
+        .card {
+            width: 100%;
+            max-width: 480px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 28px;
+            margin: 12px 20px 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ─── LOGIN ─── */
+        #loginScreen { text-align: center; }
+
+        .login-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--blue-dim);
+            border: 1px solid rgba(77,124,255,0.3);
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .login-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .login-sub {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-bottom: 28px;
+        }
+
+        /* ─── FORM ELEMENTS ─── */
+        .form-group { margin-bottom: 16px; text-align: left; }
+
+        label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        label svg { flex-shrink: 0; }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--surface2);
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]::placeholder { color: var(--text-muted); }
+        input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-dim); }
+        #sellerName:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+        #searchSeller:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-dim); }
+        input[readonly] { color: var(--text-muted); cursor: not-allowed; }
+
+        .coords-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        /* ─── BUTTONS ─── */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            text-align: center;
+            text-decoration: none;
+            letter-spacing: 0.3px;
+            transition: all 0.15s ease;
+        }
+
+        .btn:active { transform: scale(0.98); }
+
+        .btn-login {
+            background: var(--blue);
+            color: #fff;
+            font-family: 'Syne', sans-serif;
+            font-size: 0.95rem;
+        }
+        .btn-login:hover { background: #6090ff; }
+
+        .btn-gps {
+            background: var(--surface2);
+            color: var(--blue);
+            border: 1.5px solid var(--blue);
+        }
+        .btn-gps:hover { background: var(--blue-dim); }
+
+        .btn-submit {
+            background: var(--green);
+            color: #000;
+            font-family: 'Syne', sans-serif;
+        }
+        .btn-submit:hover { background: #00ffaa; }
+
+        .btn-search {
+            background: var(--orange);
+            color: #000;
+            font-family: 'Syne', sans-serif;
+        }
+        .btn-search:hover { background: #ff9050; }
+
+        .btn-maps {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1.5px solid var(--border);
+            margin-top: 10px;
+            margin-bottom: 0;
+        }
+        .btn-maps:hover { border-color: var(--red); color: var(--red); }
+
+        /* ─── USER BAR ─── */
+        #mainApp { display: none; width: 100%; max-width: 480px; padding: 0 0px; }
+
+        .user-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px 18px;
+            margin: 12px 20px 0;
+        }
+
+        .rider-info { display: flex; align-items: center; gap: 10px; }
+
+        .rider-avatar {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--blue), var(--green));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .rider-label { font-size: 0.75rem; color: var(--text-muted); }
+        .rider-name { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+
+        .credit-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--green-dim);
+            border: 1px solid rgba(0,245,160,0.25);
+            color: var(--green);
+            padding: 7px 14px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            font-family: 'Syne', sans-serif;
+            transition: all 0.3s;
+        }
+
+        .credit-pill.low {
+            background: var(--red-dim);
+            border-color: rgba(255,77,106,0.25);
+            color: var(--red);
+        }
+
+        /* ─── TABS ─── */
+        .tabs-wrapper {
+            display: flex;
+            gap: 6px;
+            padding: 12px 20px 0;
+        }
+
+        .tab-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            background: var(--surface);
+            color: var(--text-muted);
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active-encode {
+            background: var(--green-dim);
+            color: var(--green);
+            border-color: rgba(0,245,160,0.3);
+        }
+
+        .tab-btn.active-find {
+            background: var(--orange-dim);
+            color: var(--orange);
+            border-color: rgba(255,123,47,0.3);
+        }
+
+        /* ─── TAB CONTENT ─── */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ─── STATUS MESSAGES ─── */
+        .status-msg {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: var(--surface2);
+            color: var(--text-sub);
+            border: 1px solid var(--border);
+            min-height: 44px;
+        }
+
+        .status-msg.success { background: var(--green-dim); color: var(--green); border-color: rgba(0,245,160,0.2); }
+        .status-msg.error { background: var(--red-dim); color: var(--red); border-color: rgba(255,77,106,0.2); }
+        .status-msg.warning { background: var(--orange-dim); color: var(--orange); border-color: rgba(255,123,47,0.2); }
+        .status-msg.loading { color: var(--blue); border-color: rgba(77,124,255,0.2); background: var(--blue-dim); }
+
+        /* ─── SECTION HEADERS ─── */
+        .section-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ─── DIVIDER ─── */
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 18px 0;
+        }
+
+        /* ─── AUTOCOMPLETE ─── */
+        .search-wrapper { position: relative; margin-bottom: 14px; }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 999;
+            display: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar { width: 4px; }
+        .autocomplete-dropdown::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 13px 15px;
+            color: var(--text);
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+            transition: background 0.15s;
+        }
+
+        .dropdown-item:last-child { border-bottom: none; }
+        .dropdown-item:hover { background: var(--surface2); color: var(--orange); }
+        .dropdown-item svg { color: var(--text-muted); flex-shrink: 0; }
+
+        /* ─── RESULT CARDS ─── */
+        .result-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 12px;
+            transition: border-color 0.2s;
+        }
+
+        .result-card:hover { border-color: var(--border-light); }
+
+        .result-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; gap: 10px; }
+
+        .result-name {
+            font-family: 'Syne', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .distance-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--orange-dim);
+            color: var(--orange);
+            border: 1px solid rgba(255,123,47,0.2);
+            padding: 4px 10px;
+            border-radius: 50px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .map-preview {
+            height: 170px;
+            width: 100%;
+            border-radius: 10px;
+            margin-top: 10px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        /* ─── SUCCESS MODAL ─── */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(6px);
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 36px 28px;
+            text-align: center;
+            max-width: 360px;
+            width: 100%;
+            box-shadow: 0 0 60px rgba(0,245,160,0.12), 0 20px 60px rgba(0,0,0,0.5);
+            animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal-icon-wrap {
+            width: 72px;
+            height: 72px;
+            background: var(--green-dim);
+            border: 1px solid rgba(0,245,160,0.3);
+            border-radius: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .modal-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--green);
+            margin-bottom: 10px;
+        }
+
+        .modal-msg {
+            color: var(--text-sub);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+
+        .credit-gain {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--green-dim);
+            color: var(--green);
+            border: 1px solid rgba(0,245,160,0.25);
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .btn-close-modal {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1.5px solid var(--border);
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.15s;
+        }
+
+        .btn-close-modal:hover { border-color: var(--green); color: var(--green); }
+
+        @keyframes popIn {
+            0% { transform: scale(0.85) translateY(20px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        /* ─── LOADER DOTS ─── */
+        .dot-loader {
+            display: inline-flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .dot-loader span {
+            width: 5px;
+            height: 5px;
+            background: currentColor;
+            border-radius: 50%;
+            animation: dotPulse 1.2s infinite;
+        }
+
+        .dot-loader span:nth-child(2) { animation-delay: 0.2s; }
+        .dot-loader span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes dotPulse {
+            0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1); }
+        }
+
+        /* ─── EMPTY STATE ─── */
+        .empty-state {
+            text-align: center;
+            padding: 32px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg { margin: 0 auto 12px; display: block; opacity: 0.4; }
+        .empty-state p { font-size: 0.9rem; }
+
+        /* ─── SCROLLBAR ─── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+<!-- ───────────── HEADER ───────────── -->
+<div class="app-header">
+    <div class="logo-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L3 7v10l9 5 9-5V7L12 2z" stroke="#000" stroke-width="2" stroke-linejoin="round" fill="#000" fill-opacity="0.1"/>
+            <circle cx="12" cy="12" r="3" fill="#000"/>
+        </svg>
+    </div>
+    <div class="app-title">SFD <span>Rider Hub</span></div>
+</div>
+
+<!-- ───────────── LOGIN SCREEN ───────────── -->
+<div id="loginScreen" class="card">
+    <div class="login-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+    </div>
+    <div class="login-title">Mag-login</div>
+    <div class="login-sub">I-type ang iyong Rider ID para makapasok</div>
+
+    <div class="form-group">
+        <label>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+            Rider ID / Phone Number
+        </label>
+        <input type="text" id="riderIdInput" placeholder="Halimbawa: SFD-001 o Mobile Number" autocomplete="off">
+    </div>
+    <div class="form-group">
+        <label>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Pangalan (Para sa bagong rider)
+        </label>
+        <input type="text" id="riderNameInput" placeholder="I-type ang iyong buong pangalan" autocomplete="off">
+    </div>
+
+    <button class="btn btn-login" onclick="loginRider()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        MASOK SA APPLICATION
+    </button>
+
+    <div id="loginStatus" class="status-msg" style="display:none;"></div>
+</div>
+
+<!-- ───────────── MAIN APP ───────────── -->
+<div id="mainApp">
+
+    <!-- User Bar -->
+    <div class="user-bar">
+        <div class="rider-info">
+            <div class="rider-avatar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div>
+                <div class="rider-label">Rider</div>
+                <div class="rider-name" id="lblRiderName">—</div>
+            </div>
+        </div>
+        <div id="lblCredits" class="credit-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span id="creditNum">0</span> Credits
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-wrapper">
+        <button class="tab-btn active-encode" id="tab-encode" onclick="switchTab('encodeSection', 'encode')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Encode Location
+        </button>
+        <button class="tab-btn" id="tab-find" onclick="switchTab('findSection', 'find')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Find Seller
+        </button>
+    </div>
+
+    <!-- Tab Content Card -->
+    <div class="card" style="margin-top:10px;">
+
+        <!-- ── ENCODE TAB ── -->
+        <div id="encodeSection" class="tab-content active">
+            <div class="section-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+                Mag-encode ng lokasyon (+2 Credits)
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    Pangalan ng Seller / Shop
+                </label>
+                <input type="text" id="sellerName" placeholder="I-type ang pangalan ng seller..." autocomplete="off">
+            </div>
+
+            <button class="btn btn-gps" onclick="getLocation()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/><path d="M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M16.24 7.76l2.83-2.83M4.93 19.07l2.83-2.83"/></svg>
+                KUNIN ANG LOKASYON MO
+            </button>
+
+            <div class="coords-row">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 8 12 1 19 8"/></svg>
+                        Latitude
+                    </label>
+                    <input type="text" id="latitude" placeholder="—" readonly>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="8 5 1 12 8 19"/></svg>
+                        Longitude
+                    </label>
+                    <input type="text" id="longitude" placeholder="—" readonly>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <button class="btn btn-submit" onclick="saveToDatabase()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                I-SAVE ANG LOKASYON (+2 CREDITS)
+            </button>
+
+            <div id="encodeStatus" class="status-msg">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Handa nang kumuha ng lokasyon...
+            </div>
+        </div>
+
+        <!-- ── FIND TAB ── -->
+        <div id="findSection" class="tab-content">
+            <div class="section-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+                Hanapin ang seller (-1 Credit)
+            </div>
+
+            <div class="search-wrapper">
+                <input type="text" id="searchSeller" oninput="filterSellerDropdown()" placeholder="I-type ang pangalan ng seller..." autocomplete="off">
+                <div id="searchDropdown" class="autocomplete-dropdown"></div>
+            </div>
+
+            <button class="btn btn-search" onclick="searchSeller()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                HANAPIN NA (−1 CREDIT)
+            </button>
+
+            <div id="searchStatus" class="status-msg" style="display:none;"></div>
+            <div id="searchResults"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ───────────── SUCCESS MODAL ───────────── -->
+<div id="successModal" class="modal">
+    <div class="modal-card">
+        <div class="modal-icon-wrap">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+        </div>
+        <div class="modal-title">Na-save na!</div>
+        <div class="credit-gain">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            +2 Credits na-add!
+        </div>
+        <div class="modal-msg">Nairehistro na ang lokasyon ng seller.<br>Malaking tulong ito para sa iba pang mga SFD Riders!</div>
+        <button class="btn-close-modal" onclick="closeModal()">
+            Okay, Salamat!
+        </button>
+    </div>
+</div>
+
+<script>
+let currentRiderId = "";
+let allSellersData = [];
+
+// ─── HELPERS ───────────────────────────────────────────
+function setStatus(elId, msg, type = '') {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.style.display = 'flex';
+    el.className = 'status-msg' + (type ? ` ${type}` : '');
+
+    const icons = {
+        success: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+        error:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+        warning: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        loading: `<div class="dot-loader"><span></span><span></span><span></span></div>`,
+        '':      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
+    };
+    el.innerHTML = (icons[type] || icons['']) + `<span>${msg}</span>`;
+}
+
+function updateCreditUI(credits) {
+    const num = document.getElementById('creditNum');
+    const pill = document.getElementById('lblCredits');
+    if (num) num.textContent = credits;
+    if (pill) pill.className = 'credit-pill' + (credits <= 0 ? ' low' : '');
+}
+
+function getDistanceKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a = Math.sin(dLat/2)**2 +
+              Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+              Math.sin(dLon/2)**2;
+    return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(2);
+}
+
+// ─── LOAD SELLER NAMES FOR DROPDOWN ────────────────────
+async function loadSellerNames() {
+    try {
+        const res = await fetch('/api/all-seller-names');
+        if (res.ok) allSellersData = await res.json();
+    } catch(e) { /* silent */ }
+}
+
+loadSellerNames();
+
+// ─── LOGIN ──────────────────────────────────────────────
+async function loginRider() {
+    const riderId   = document.getElementById('riderIdInput').value.trim();
+    const riderName = document.getElementById('riderNameInput').value.trim();
+
+    if (!riderId) {
+        setStatus('loginStatus', 'Paki-sulat ang iyong Rider ID.', 'warning');
+        return;
+    }
+
+    setStatus('loginStatus', 'Kumokonekta sa server...', 'loading');
+
+    try {
+        const res  = await fetch('/api/rider-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ riderId, riderName })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            currentRiderId = data.rider_id;
+            document.getElementById('lblRiderName').textContent = data.name;
+            updateCreditUI(data.credits);
+
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display     = 'block';
+        } else {
+            setStatus('loginStatus', data.error || 'Error sa server.', 'error');
+        }
+    } catch(e) {
+        setStatus('loginStatus', 'Hindi makakonekta sa server. Subukan ulit.', 'error');
+    }
+}
+
+// Enter key on login
+document.addEventListener('DOMContentLoaded', () => {
+    ['riderIdInput','riderNameInput'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') loginRider(); });
+    });
+});
+
+// ─── TABS ───────────────────────────────────────────────
+function switchTab(sectionId, type) {
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    document.getElementById(sectionId).classList.add('active');
+
+    const encodeBtn = document.getElementById('tab-encode');
+    const findBtn   = document.getElementById('tab-find');
+    encodeBtn.className = 'tab-btn' + (type === 'encode' ? ' active-encode' : '');
+    findBtn.className   = 'tab-btn' + (type === 'find'   ? ' active-find'   : '');
+}
+
+// ─── GET GPS LOCATION ──────────────────────────────────
+function getLocation() {
+    if (!navigator.geolocation) {
+        setStatus('encodeStatus', 'Walang GPS sa device na ito.', 'error');
+        return;
+    }
+
+    setStatus('encodeStatus', 'Kinukuha ang iyong lokasyon...', 'loading');
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            document.getElementById('latitude').value  = pos.coords.latitude.toFixed(7);
+            document.getElementById('longitude').value = pos.coords.longitude.toFixed(7);
+            setStatus('encodeStatus', 'Lokasyon nakuha! Maaari nang i-save.', 'success');
+        },
+        (err) => {
+            setStatus('encodeStatus', 'Hindi nakuha ang lokasyon. I-allow ang GPS.', 'error');
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+}
+
+// ─── SAVE LOCATION ────────────────────────────────────
+async function saveToDatabase() {
+    const seller = document.getElementById('sellerName').value.trim();
+    const lat    = document.getElementById('latitude').value;
+    const lng    = document.getElementById('longitude').value;
+
+    if (!seller) { setStatus('encodeStatus', 'Mag-type muna ng pangalan ng seller.', 'warning'); return; }
+    if (!lat || !lng) { setStatus('encodeStatus', 'Kunin muna ang lokasyon mo.', 'warning'); return; }
+
+    setStatus('encodeStatus', 'Sine-save sa database...', 'loading');
+
+    try {
+        const res  = await fetch('/api/save-location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ seller, lat, lng, riderId: currentRiderId })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            document.getElementById('successModal').classList.add('show');
+            setStatus('encodeStatus', 'Na-save! Handa nang mag-encode ulit.', 'success');
+            updateCreditUI(data.totalCredits);
+
+            document.getElementById('sellerName').value  = '';
+            document.getElementById('latitude').value    = '';
+            document.getElementById('longitude').value   = '';
+
+            loadSellerNames();
+        } else {
+            setStatus('encodeStatus', data.error || 'Error sa pag-save.', 'error');
+        }
+    } catch(e) {
+        setStatus('encodeStatus', 'Error sa koneksyon sa server.', 'error');
+    }
+}
+
+function closeModal() {
+    document.getElementById('successModal').classList.remove('show');
+}
+
+// ─── AUTOCOMPLETE DROPDOWN ────────────────────────────
+function filterSellerDropdown() {
+    const input    = document.getElementById('searchSeller').value.toLowerCase();
+    const dropdown = document.getElementById('searchDropdown');
+    dropdown.innerHTML = '';
+
+    if (!input.trim()) { dropdown.style.display = 'none'; return; }
+
+    const matches = allSellersData.filter(s =>
+        s.seller_name.toLowerCase().includes(input)
+    );
+
+    if (matches.length > 0) {
+        dropdown.style.display = 'block';
+        matches.slice(0, 8).forEach(seller => {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item';
+            item.innerHTML = `
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span>${seller.seller_name}</span>
+            `;
+            item.onclick = () => {
+                document.getElementById('searchSeller').value = seller.seller_name;
+                dropdown.style.display = 'none';
+            };
+            dropdown.appendChild(item);
+        });
+    } else {
+        dropdown.style.display = 'none';
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const wrapper = document.querySelector('.search-wrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+        const dd = document.getElementById('searchDropdown');
+        if (dd) dd.style.display = 'none';
+    }
+});
+
+// ─── SEARCH SELLER ────────────────────────────────────
+function searchSeller() {
+    const searchName       = document.getElementById('searchSeller').value.trim();
+    const resultsContainer = document.getElementById('searchResults');
+
+    resultsContainer.innerHTML = '';
+    document.getElementById('searchStatus').style.display = 'none';
+
+    if (!searchName) {
+        setStatus('searchStatus', 'Mag-type muna ng pangalan ng seller.', 'warning');
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        setStatus('searchStatus', 'Walang GPS. Kailangan para makita ang distansya.', 'error');
+        return;
+    }
+
+    setStatus('searchStatus', 'Kinukuha ang iyong lokasyon...', 'loading');
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const riderLat = position.coords.latitude;
+        const riderLng = position.coords.longitude;
+
+        setStatus('searchStatus', 'Hinahanap ang seller...', 'loading');
+
+        try {
+            const res  = await fetch(`/api/search-seller?name=${encodeURIComponent(searchName)}&riderId=${encodeURIComponent(currentRiderId)}`);
+            const data = await res.json();
+
+            if (!res.ok) {
+                setStatus('searchStatus', data.error || 'Error sa paghahanap.', 'error');
+                return;
+            }
+
+            updateCreditUI(data.remainingCredits);
+
+            if (!data.sellers || data.sellers.length === 0) {
+                setStatus('searchStatus', `Walang nahanap na seller na "${searchName}".`, 'error');
+                resultsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <p>Subukan ng ibang pangalan</p>
+                    </div>
+                `;
+                return;
+            }
+
+            setStatus('searchStatus', `${data.sellers.length} seller ang nahanap!`, 'success');
+
+            data.sellers.forEach((item, index) => {
+                const distance = getDistanceKm(riderLat, riderLng, item.latitude, item.longitude);
+                const mapId    = `map-${index}`;
+                const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`;
+
+                const div = document.createElement('div');
+                div.className = 'result-card';
+                div.innerHTML = `
+                    <div class="result-header">
+                        <div class="result-name">${item.seller_name}</div>
+                        <div class="distance-badge">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+                            ${distance} km
+                        </div>
+                    </div>
+                    <div id="${mapId}" class="map-preview"></div>
+                    <a href="${gmapsUrl}" target="_blank" class="btn btn-maps" style="margin-top:10px; margin-bottom:0; display:flex; align-items:center; justify-content:center; gap:8px; text-decoration:none;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                        NAVIGATE SA GOOGLE MAPS
+                    </a>
+                `;
+                resultsContainer.appendChild(div);
+
+                setTimeout(() => {
+                    const map = L.map(mapId, { zoomControl: false });
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap'
+                    }).addTo(map);
+
+                    const riderIcon = L.divIcon({
+                        html: `<div style="background:#4d7cff;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 6px rgba(77,124,255,0.8);"></div>`,
+                        iconSize: [12,12], iconAnchor: [6,6], className: ''
+                    });
+                    const sellerIcon = L.divIcon({
+                        html: `<div style="background:#ff7b2f;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 6px rgba(255,123,47,0.8);"></div>`,
+                        iconSize: [14,14], iconAnchor: [7,7], className: ''
+                    });
+
+                    const riderMarker  = L.marker([riderLat, riderLng], { icon: riderIcon }).addTo(map).bindPopup("Ikaw");
+                    const sellerMarker = L.marker([item.latitude, item.longitude], { icon: sellerIcon }).addTo(map).bindPopup(item.seller_name);
+
+                    const group = L.featureGroup([riderMarker, sellerMarker]);
+                    map.fitBounds(group.getBounds(), { padding: [20, 20] });
+                }, 250);
+            });
+
+        } catch(err) {
+            setStatus('searchStatus', 'Error sa koneksyon sa server.', 'error');
+        }
+
+    }, () => {
+        setStatus('searchStatus', 'Kailangan ang GPS para mag-search. I-allow ang location access.', 'error');
+    }, { enableHighAccuracy: true, timeout: 12000 });
+}
+
+// Enter key in search
+document.addEventListener('DOMContentLoaded', () => {
+    const si = document.getElementById('searchSeller');
+    if (si) si.addEventListener('keydown', e => { if (e.key === 'Enter') searchSeller(); });
+});
+</script>
+</body>
+</html>
