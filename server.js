@@ -152,6 +152,19 @@ app.get('/api/search-seller', async (req, res) => {
 });
 
 const PORT = 3000;
+// ==========================================
+// 4. GET ALL SELLER NAMES (Para sa Dropdown - LIBRE)
+// ==========================================
+app.get('/api/all-seller-names', async (req, res) => {
+    // Kukunin lang natin ang mga pangalan, hindi ang coordinates para tipid sa data
+    const { data, error } = await supabase
+        .from('sellers')
+        .select('seller_name');
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.status(200).json(data);
+});
+
 app.listen(PORT, () => {
     console.log(`✅ SFD Secured Backend at http://localhost:${PORT}`);
 });
