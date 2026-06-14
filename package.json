@@ -2,15 +2,24 @@
   "name": "sfdfindseller",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
+  "dependencies": {
+    "ws": "^8.21.0"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erwin621/sfd-rider-hub.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "dependencies": {
-    "ws": "^8.21.0"
-  }
+  "bugs": {
+    "url": "https://github.com/erwin621/sfd-rider-hub/issues"
+  },
+  "homepage": "https://github.com/erwin621/sfd-rider-hub#readme"
 }
