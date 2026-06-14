@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SFD Rider Hub — Finance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ── */
+:root {
+  --primary:#2F7BFF; --primary-light:#EBF3FF; --primary-dark:#1A5FD4;
+  --secondary:#FF7B2F; --secondary-light:#FFF0E8;
+  --success:#16A34A; --success-light:#DCFCE7;
+  --warning:#F59E0B; --warning-light:#FEF3C7;
+  --error:#DC2626; --error-light:#FEE2E2;
+  --bg:#F6F8FC; --surface:#FFFFFF; --surface-2:#F0F4FA;
+  --border:#E4E9F2; --border-strong:#CDD4E0;
+  --text-primary:#0F1729; --text-secondary:#4A5568; --text-muted:#94A3B8;
+  --radius-sm:8px; --radius-md:12px; --radius-lg:16px; --radius-xl:20px; --radius-2xl:24px;
+  --shadow-xs:0 1px 2px rgba(15,23,41,.05);
+  --shadow-sm:0 2px 8px rgba(15,23,41,.06),0 1px 2px rgba(15,23,41,.04);
+  --shadow-md:0 4px 16px rgba(15,23,41,.08),0 2px 4px rgba(15,23,41,.04);
+  --shadow-lg:0 8px 32px rgba(15,23,41,.10),0 2px 8px rgba(15,23,41,.06);
+  --shadow-primary:0 4px 16px rgba(47,123,255,.25);
+  --t-fast:150ms cubic-bezier(.4,0,.2,1);
+  --t-base:220ms cubic-bezier(.4,0,.2,1);
+  --t-spring:300ms cubic-bezier(.34,1.56,.64,1);
+  --font-sans:'DM Sans',-apple-system,sans-serif;
+  --font-mono:'DM Mono',monospace;
+  --nav-h:64px; --bot-nav:68px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--text-primary);font-size:16px;line-height:1.5;min-height:100vh;overflow-x:hidden}
+button{cursor:pointer;font-family:inherit;border:none;background:none}
+input,select,textarea{font-family:inherit}
+a{text-decoration:none;color:inherit}
+ul{list-style:none}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:99px}
+
+/* ── TOP NAV ── */
+.top-nav{position:fixed;top:0;left:0;right:0;height:var(--nav-h);background:rgba(255,255,255,.88);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;z-index:100;transition:box-shadow var(--t-base)}
+.top-nav.scrolled{box-shadow:var(--shadow-sm)}
+.nav-logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;color:var(--text-primary);margin-right:auto}
+.nav-logo-icon{width:32px;height:32px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-primary)}
+.nav-logo-text span{color:var(--primary)}
+.nav-actions{display:flex;align-items:center;gap:4px}
+.nav-icon-btn{width:36px;height:36px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);position:relative;transition:all var(--t-fast)}
+.nav-icon-btn:hover{background:var(--surface-2);color:var(--text-primary)}
+.nav-badge{position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--error);border-radius:50%;border:2px solid var(--surface)}
+.nav-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--primary) 0%,#6366F1 100%);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:13px;cursor:pointer;margin-left:4px;box-shadow:0 0 0 2px white,0 0 0 3px var(--primary);transition:transform var(--t-spring)}
+.nav-avatar:hover{transform:scale(1.08)}
+
+/* ── LAYOUT ── */
+.app-layout{padding-top:var(--nav-h);padding-bottom:calc(var(--bot-nav) + 16px);min-height:100vh}
+.container{max-width:520px;margin:0 auto;padding:0 16px}
+@media(min-width:1024px){
+  .app-layout{display:grid;grid-template-columns:240px 1fr;padding-bottom:32px}
+  .container{max-width:100%;padding:0}
+}
+
+/* ── PAGE HEADER ── */
+.page-header{padding:24px 0 8px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.page-header-text h1{font-size:22px;font-weight:700;letter-spacing:-.4px}
+.page-header-text p{font-size:14px;color:var(--text-muted);margin-top:2px}
+.period-btn{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:6px 12px;font-size:13px;font-weight:500;color:var(--text-secondary);cursor:pointer;transition:all var(--t-base);white-space:nowrap}
+.period-btn:hover{border-color:var(--primary);color:var(--primary)}
+
+/* ── HERO CARD ── */
+.hero-card{position:relative;background:linear-gradient(135deg,#1A5FD4 0%,#2F7BFF 40%,#4F9EFF 100%);border-radius:var(--radius-2xl);padding:24px;overflow:hidden;box-shadow:var(--shadow-primary);margin-bottom:16px;animation:fadeUp .4s var(--t-spring) both}
+.hero-card::before{content:'';position:absolute;top:-40px;right:-30px;width:180px;height:180px;background:rgba(255,255,255,.06);border-radius:50%;pointer-events:none}
+.hero-card::after{content:'';position:absolute;bottom:-60px;right:20px;width:220px;height:220px;background:rgba(255,255,255,.04);border-radius:50%;pointer-events:none}
+.hero-label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:8px}
+.hero-balance{font-size:38px;font-weight:700;color:white;letter-spacing:-1.5px;line-height:1.1;font-variant-numeric:tabular-nums}
+.hero-balance sup{font-size:20px;font-weight:600;vertical-align:super;letter-spacing:0;margin-right:2px}
+.hero-change{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.15);border-radius:99px;padding:4px 10px;font-size:12px;font-weight:600;color:rgba(255,255,255,.9);margin-top:10px}
+.hero-wallet-icon{position:absolute;top:20px;right:20px;width:48px;height:48px;background:rgba(255,255,255,.12);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.8)}
+
+/* ── STATS GRID ── */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+@media(min-width:1024px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-card{background:var(--surface);border-radius:var(--radius-xl);padding:16px;border:1px solid var(--border);box-shadow:var(--shadow-xs);transition:all var(--t-base);cursor:pointer;animation:fadeUp .4s var(--t-spring) both}
+.stat-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);border-color:transparent}
+.stat-icon-wrap{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.stat-icon-wrap.income{background:var(--success-light);color:var(--success)}
+.stat-icon-wrap.expense{background:var(--error-light);color:var(--error)}
+.stat-icon-wrap.balance{background:var(--secondary-light);color:var(--secondary)}
+.stat-icon-wrap.savings{background:var(--primary-light);color:var(--primary)}
+.stat-label{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px}
+.stat-value{font-size:20px;font-weight:700;color:var(--text-primary);letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.stat-sub{font-size:12px;color:var(--text-muted);margin-top:3px}
+.stat-sub.up{color:var(--success);font-weight:500}
+.stat-sub.dn{color:var(--error);font-weight:500}
+.savings-track{width:100%;height:4px;background:var(--primary-light);border-radius:99px;margin-top:8px;overflow:hidden}
+.savings-fill{height:100%;border-radius:99px;background:var(--primary);width:0%;transition:width 1s cubic-bezier(.4,0,.2,1) .5s}
+
+/* ── SECTION HEADER ── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:4px}
+.sec-title{font-size:15px;font-weight:700;letter-spacing:-.2px}
+.sec-link{display:flex;align-items:center;gap:4px;font-size:13px;font-weight:500;color:var(--primary);cursor:pointer;transition:gap var(--t-fast)}
+.sec-link:hover{gap:6px}
+
+/* ── CHART CARD ── */
+.chart-card{background:var(--surface);border-radius:var(--radius-xl);border:1px solid var(--border);padding:16px;box-shadow:var(--shadow-xs);margin-bottom:16px;animation:fadeUp .4s var(--t-spring) .3s both}
+.chart-bars{display:flex;align-items:flex-end;gap:8px;height:80px;margin-top:12px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%}
+.bar-track{flex:1;width:100%;background:var(--surface-2);border-radius:6px;display:flex;align-items:flex-end;overflow:hidden;position:relative;display:flex;gap:2px;padding:0}
+.bar-income{flex:1;background:var(--primary);border-radius:4px 4px 0 0;opacity:.85;height:0%;transition:height .8s cubic-bezier(.4,0,.2,1) .5s;display:flex;align-self:flex-end}
+.bar-expense{flex:1;background:var(--secondary);border-radius:4px 4px 0 0;opacity:.85;height:0%;transition:height .8s cubic-bezier(.4,0,.2,1) .6s;display:flex;align-self:flex-end}
+.bar-label{font-size:10px;color:var(--text-muted);font-weight:500}
+
+/* ── TRANSACTIONS CARD ── */
+.tx-card{background:var(--surface);border-radius:var(--radius-xl);border:1px solid var(--border);box-shadow:var(--shadow-xs);overflow:hidden;margin-bottom:16px;animation:fadeUp .4s var(--t-spring) .25s both}
+.tx-search-bar{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.tx-search-input{flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;color:var(--text-primary);outline:none;transition:all var(--t-base)}
+.tx-search-input::placeholder{color:var(--text-muted)}
+.tx-search-input:focus{border-color:var(--primary);background:white;box-shadow:0 0 0 3px rgba(47,123,255,.1)}
+.tx-filter-btn{width:34px;height:34px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);transition:all var(--t-fast)}
+.tx-filter-btn:hover{background:var(--primary-light);color:var(--primary);border-color:var(--primary)}
+.tx-item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--border);transition:background var(--t-fast);cursor:pointer}
+.tx-item:last-child{border-bottom:none}
+.tx-item:hover{background:var(--surface-2)}
+.tx-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tx-icon.income{background:var(--success-light);color:var(--success)}
+.tx-icon.expense{background:var(--error-light);color:var(--error)}
+.tx-info{flex:1;min-width:0}
+.tx-desc{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-meta{display:flex;align-items:center;gap:6px;margin-top:2px}
+.tx-date{font-size:12px;color:var(--text-muted)}
+.tx-badge{font-size:11px;font-weight:500;padding:1px 6px;border-radius:4px;background:var(--surface-2);color:var(--text-secondary)}
+.tx-right{text-align:right;flex-shrink:0}
+.tx-amount{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;font-family:var(--font-mono)}
+.tx-amount.income{color:var(--success)}
+.tx-amount.expense{color:var(--error)}
+.tx-acct{font-size:11px;color:var(--text-muted);margin-top:2px}
+
+/* ── WALLETS ── */
+.wallets-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-bottom:16px;animation:fadeUp .4s var(--t-spring) .35s both}
+.wallets-scroll::-webkit-scrollbar{display:none}
+.wallet-chip{flex-shrink:0;border-radius:var(--radius-lg);padding:14px 16px;min-width:130px;cursor:pointer;transition:all var(--t-spring);position:relative;overflow:hidden}
+.wallet-chip::after{content:'';position:absolute;top:-20px;right:-20px;width:70px;height:70px;background:rgba(255,255,255,.12);border-radius:50%;pointer-events:none}
+.wallet-chip:hover{transform:translateY(-3px);filter:brightness(1.05)}
+.wallet-chip.gcash{background:linear-gradient(135deg,#007AFF,#34AAFF)}
+.wallet-chip.maribank{background:linear-gradient(135deg,#16A34A,#22C55E)}
+.wallet-chip.shopee{background:linear-gradient(135deg,#FF4500,#FF7B2F)}
+.wallet-chip.cash{background:linear-gradient(135deg,#475569,#64748B)}
+.w-name{font-size:12px;font-weight:600;color:rgba(255,255,255,.8);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.w-bal{font-size:18px;font-weight:700;color:white;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+
+/* ── FORM ── */
+.form-card{background:var(--surface);border-radius:var(--radius-xl);border:1px solid var(--border);box-shadow:var(--shadow-xs);overflow:hidden;margin-bottom:24px;animation:fadeUp .4s var(--t-spring) .4s both}
+.form-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);cursor:pointer}
+.form-hdr-left{display:flex;align-items:center;gap:10px}
+.form-hdr-icon{width:32px;height:32px;background:var(--primary-light);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--primary)}
+.form-hdr-title{font-size:15px;font-weight:700}
+.chevron{color:var(--text-muted);transition:transform var(--t-base)}
+.form-card.collapsed .chevron{transform:rotate(-90deg)}
+.form-card.collapsed .form-body{display:none}
+.form-body{padding:20px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-group{margin-bottom:0}
+.form-group.full{grid-column:1/-1}
+.f-label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.f-input,.f-select{width:100%;background:var(--surface-2);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:14px;font-family:var(--font-sans);color:var(--text-primary);outline:none;transition:all var(--t-base);-webkit-appearance:none;appearance:none}
+.f-input::placeholder{color:var(--text-muted)}
+.f-input:focus,.f-select:focus{border-color:var(--primary);background:white;box-shadow:0 0 0 3px rgba(47,123,255,.1)}
+.sel-wrap{position:relative}
+.sel-wrap::after{content:'';position:absolute;right:12px;top:50%;transform:translateY(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--text-muted);pointer-events:none}
+.type-toggle{display:flex;gap:0;background:var(--surface-2);border-radius:var(--radius-sm);padding:3px;border:1.5px solid var(--border)}
+.type-btn{flex:1;padding:8px 12px;border-radius:6px;font-size:13px;font-weight:600;color:var(--text-muted);transition:all var(--t-base);text-align:center}
+.type-btn.active.income{background:white;color:var(--success);box-shadow:var(--shadow-xs)}
+.type-btn.active.expense{background:white;color:var(--error);box-shadow:var(--shadow-xs)}
+.cat-chips{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 0}
+.cat-chip{padding:6px 12px;border-radius:99px;font-size:12px;font-weight:500;background:var(--surface-2);border:1.5px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all var(--t-base)}
+.cat-chip:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-light)}
+.cat-chip.active{background:var(--primary);border-color:var(--primary);color:white;box-shadow:var(--shadow-primary)}
+.amount-wrap{position:relative}
+.amount-sym{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;font-weight:700;color:var(--text-muted);pointer-events:none}
+.amount-input{padding-left:26px;font-size:18px;font-weight:700;font-family:var(--font-mono)}
+.btn-submit{width:100%;margin-top:16px;padding:14px;background:var(--primary);color:white;border-radius:var(--radius-md);font-size:15px;font-weight:700;letter-spacing:.2px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:var(--shadow-primary);transition:all var(--t-spring);position:relative;overflow:hidden}
+.btn-submit::before{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,rgba(255,255,255,.08),transparent)}
+.btn-submit:hover{background:var(--primary-dark);transform:translateY(-1px);box-shadow:0 6px 20px rgba(47,123,255,.35)}
+.btn-submit:active{transform:translateY(0)}
+.btn-submit:disabled{opacity:.6;cursor:not-allowed;transform:none}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:var(--bot-nav);background:rgba(255,255,255,.92);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;padding:0 8px;z-index:100}
+@media(min-width:1024px){.bottom-nav{display:none}}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 16px;border-radius:var(--radius-md);color:var(--text-muted);font-size:11px;font-weight:500;transition:all var(--t-base);cursor:pointer;min-width:60px}
+.nav-item.active{color:var(--primary)}
+.nav-dot{width:4px;height:4px;background:var(--primary);border-radius:50%;margin-top:2px}
+
+/* ── SIDEBAR ── */
+@media(min-width:1024px){
+  .sidebar{position:fixed;top:var(--nav-h);left:0;bottom:0;width:240px;background:var(--surface);border-right:1px solid var(--border);padding:24px 12px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+  .main-content{grid-column:2;padding:0 32px 32px}
+  .s-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--radius-md);font-size:14px;font-weight:500;color:var(--text-secondary);cursor:pointer;transition:all var(--t-fast)}
+  .s-item:hover{background:var(--surface-2);color:var(--text-primary)}
+  .s-item.active{background:var(--primary-light);color:var(--primary);font-weight:600}
+  .s-sec{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);padding:8px 14px 4px;margin-top:8px}
+  .s-spacer{flex:1}
+  .s-user{display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-2);border-radius:var(--radius-md);cursor:pointer}
+  .s-user-info{flex:1;min-width:0}
+  .s-user-name{font-size:13px;font-weight:600}
+  .s-user-role{font-size:12px;color:var(--text-muted)}
+}
+@media(max-width:1023px){.sidebar{display:none}.main-content{width:100%}}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;top:calc(var(--nav-h) + 12px);right:16px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 16px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;color:var(--text-primary);max-width:280px;pointer-events:all;animation:toastIn .3s var(--t-spring) both;border-left:3px solid var(--success)}
+
+/* ── LOADING SKELETON ── */
+.skeleton{background:linear-gradient(90deg,var(--surface-2) 25%,#e8edf5 50%,var(--surface-2) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px}
+.skel-tx{height:64px;margin-bottom:1px}
+.skel-stat{height:96px;border-radius:var(--radius-xl)}
+
+/* ── SPINNER ── */
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+
+/* ── ERROR BANNER ── */
+.error-banner{background:var(--error-light);border:1px solid #fca5a5;border-radius:var(--radius-md);padding:12px 16px;font-size:13px;color:var(--error);display:flex;align-items:center;gap:8px;margin-bottom:16px}
+
+/* ── EMPTY STATE ── */
+.empty{padding:32px 16px;text-align:center;color:var(--text-muted)}
+.empty p{font-size:13px;margin-top:8px}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes shimmer{to{background-position:-200% 0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- TOASTS -->
+<div class="toast-wrap" id="toasts"></div>
+
+<!-- TOP NAV -->
+<nav class="top-nav" id="topNav">
+  <div class="nav-logo">
+    <div class="nav-logo-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    </div>
+    <span class="nav-logo-text">SFD <span>Hub</span></span>
+  </div>
+  <div class="nav-actions">
+    <button class="nav-icon-btn" id="notifBtn" title="Notifications">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="nav-badge"></span>
+    </button>
+    <div class="nav-avatar" id="navAvatar">ER</div>
+  </div>
+</nav>
+
+<div class="app-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <p class="s-sec">Overview</p>
+    <div class="s-item active">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </div>
+    <p class="s-sec">Finance</p>
+    <div class="s-item" onclick="scrollTo('txCard')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20M5 20V10l7-7 7 7v10"/></svg>
+      Transactions
+    </div>
+    <div class="s-item" onclick="scrollTo('walletsRow')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      Wallets
+    </div>
+    <div class="s-item" onclick="scrollTo('formCard')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      Add Transaction
+    </div>
+    <div class="s-spacer"></div>
+    <div class="s-user">
+      <div class="nav-avatar" style="width:32px;height:32px;font-size:12px">ER</div>
+      <div class="s-user-info">
+        <div class="s-user-name" id="sidebarName">Erwin R.</div>
+        <div class="s-user-role">SFD Rider</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <div class="container">
+
+      <!-- PAGE HEADER -->
+      <div class="page-header">
+        <div class="page-header-text">
+          <h1 id="greeting">Good morning 👋</h1>
+          <p id="periodLabel">Loading…</p>
+        </div>
+        <button class="period-btn" id="refreshBtn" onclick="loadAll()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Refresh
+        </button>
+      </div>
+
+      <!-- ERROR BANNER -->
+      <div class="error-banner" id="errBanner" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="errMsg">Could not connect to server.</span>
+      </div>
+
+      <!-- HERO CARD -->
+      <div class="hero-card">
+        <div class="hero-wallet-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>
+        </div>
+        <div class="hero-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          Net Balance
+        </div>
+        <div class="hero-balance"><sup>₱</sup><span id="heroBalance">—</span></div>
+        <div class="hero-change" id="heroRate">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+          Loading…
+        </div>
+      </div>
+
+      <!-- STATS GRID -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card skeleton skel-stat"></div>
+        <div class="stat-card skeleton skel-stat"></div>
+        <div class="stat-card skeleton skel-stat"></div>
+        <div class="stat-card skeleton skel-stat"></div>
+      </div>
+
+      <!-- CHART -->
+      <div class="chart-card">
+        <div class="sec-hdr" style="margin-bottom:0">
+          <span class="sec-title">7-Day Activity</span>
+          <span style="font-size:12px;color:var(--text-muted);display:flex;gap:12px">
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--primary);display:inline-block"></span>Income</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--secondary);display:inline-block"></span>Expense</span>
+          </span>
+        </div>
+        <div class="chart-bars" id="chartBars">
+          <div style="width:100%;display:flex;align-items:center;justify-content:center;height:100%"><div class="spinner" style="border-top-color:var(--primary);border-color:var(--border)"></div></div>
+        </div>
+      </div>
+
+      <!-- TRANSACTIONS -->
+      <div class="sec-hdr">
+        <span class="sec-title">Recent Transactions</span>
+        <span class="sec-link" onclick="loadTransactions()">
+          Refresh <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+      </div>
+      <div class="tx-card" id="txCard">
+        <div class="tx-search-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" class="tx-search-input" placeholder="Search transactions…" id="txSearch" oninput="handleSearch()">
+          <button class="tx-filter-btn" title="Filter">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+          </button>
+        </div>
+        <div id="txList">
+          <div class="skeleton skel-tx"></div>
+          <div class="skeleton skel-tx"></div>
+          <div class="skeleton skel-tx"></div>
+        </div>
+      </div>
+
+      <!-- WALLETS -->
+      <div class="sec-hdr" id="walletsRow">
+        <span class="sec-title">E-Wallet Balances</span>
+        <span class="sec-link" onclick="loadWallets()">
+          Refresh <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+      </div>
+      <div class="wallets-scroll" id="walletsScroll">
+        <div class="skeleton" style="height:80px;min-width:130px;border-radius:var(--radius-lg)"></div>
+        <div class="skeleton" style="height:80px;min-width:130px;border-radius:var(--radius-lg)"></div>
+        <div class="skeleton" style="height:80px;min-width:130px;border-radius:var(--radius-lg)"></div>
+        <div class="skeleton" style="height:80px;min-width:130px;border-radius:var(--radius-lg)"></div>
+      </div>
+
+      <!-- ADD TRANSACTION FORM -->
+      <div class="sec-hdr">
+        <span class="sec-title">Add Transaction</span>
+      </div>
+      <div class="form-card" id="formCard">
+        <div class="form-hdr" onclick="toggleForm()">
+          <div class="form-hdr-left">
+            <div class="form-hdr-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            </div>
+            <span class="form-hdr-title">New Transaction</span>
+          </div>
+          <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="form-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="f-label">Date</label>
+              <input type="date" class="f-input" id="fDate">
+            </div>
+            <div class="form-group">
+              <label class="f-label">Type</label>
+              <div class="type-toggle">
+                <div class="type-btn active income" id="btnIncome" onclick="setType('income')">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;vertical-align:middle"><path d="m18 15-6-6-6 6"/></svg>
+                  Income
+                </div>
+                <div class="type-btn expense" id="btnExpense" onclick="setType('expense')">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;vertical-align:middle"><path d="m6 9 6 6 6-6"/></svg>
+                  Expense
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group full">
+              <label class="f-label">Description</label>
+              <input type="text" class="f-input" id="fDesc" placeholder="e.g. Delivery Payout, Fuel…">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="f-label">Account (Wallet)</label>
+              <div class="sel-wrap">
+                <select class="f-select" id="fWallet">
+                  <option value="">Loading…</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="f-label">Source</label>
+              <div class="sel-wrap">
+                <select class="f-select" id="fSource">
+                  <option value="SFD">SFD</option>
+                  <option value="Lalamove">Lalamove</option>
+                  <option value="Shopee">Shopee</option>
+                  <option value="Field Tech">Field Tech</option>
+                  <option value="Personal">Personal</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="f-label">Category</label>
+            <div class="cat-chips" id="catChips">
+              <div class="skeleton" style="height:30px;width:70px;border-radius:99px"></div>
+              <div class="skeleton" style="height:30px;width:80px;border-radius:99px"></div>
+              <div class="skeleton" style="height:30px;width:60px;border-radius:99px"></div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label class="f-label">Amount</label>
+            <div class="amount-wrap">
+              <span class="amount-sym">₱</span>
+              <input type="number" class="f-input amount-input" id="fAmount" placeholder="0.00" min="0.01" step="0.01">
+            </div>
+          </div>
+          <button class="btn-submit" id="submitBtn" onclick="submitTransaction()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Add Transaction
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <div class="nav-item active" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    Home
+    <div class="nav-dot"></div>
+  </div>
+  <div class="nav-item" onclick="scrollTo('txCard')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20M5 20V10l7-7 7 7v10"/></svg>
+    History
+  </div>
+  <div class="nav-item" onclick="scrollTo('walletsRow')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+    Wallets
+  </div>
+  <div class="nav-item" onclick="scrollTo('formCard')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+    Add
+  </div>
+  <div class="nav-item">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    Profile
+  </div>
+</nav>
+
+<script>
+/* ════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════ */
+// Change this if your server runs on a different port
+const API   = '/api';  // relative — works on any port
+const RIDER = 1;  // demo rider ID from seed
+
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+let allTransactions = [];
+let walletMap       = {};   // id → { name, color_class }
+let selectedCatId   = null;
+let currentType     = 'income';
+let searchTimer     = null;
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+const qs  = id => document.getElementById(id);
+const fmt = n  => parseFloat(n).toLocaleString('en-PH', { minimumFractionDigits:2, maximumFractionDigits:2 });
+
+function scrollTo(id) {
+  const el = qs(id);
+  if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function showErr(msg) {
+  qs('errBanner').style.display = 'flex';
+  qs('errMsg').textContent = msg;
+}
+function hideErr() { qs('errBanner').style.display = 'none'; }
+
+/* ════════════════════════════════════════
+   TOAST
+════════════════════════════════════════ */
+function toast(msg, type = 'success') {
+  const C = { success:'#16A34A', error:'#DC2626', info:'#2F7BFF', warning:'#F59E0B' };
+  const I = {
+    success:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`,
+    error:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+    info:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>`,
+    warning:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg>`
+  };
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.style.borderLeftColor = C[type] || C.info;
+  el.innerHTML = `<span style="color:${C[type]||C.info}">${I[type]||I.info}</span>${msg}`;
+  qs('toasts').appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(20px)'; el.style.transition='all .3s'; setTimeout(()=>el.remove(), 300); }, 2800);
+}
+
+/* ════════════════════════════════════════
+   API FETCH WRAPPER
+════════════════════════════════════════ */
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+  return json;
+}
+
+/* ════════════════════════════════════════
+   LOAD SUMMARY → HERO + STATS
+════════════════════════════════════════ */
+async function loadSummary() {
+  const now   = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  try {
+    const { data: s } = await api(`/transactions/summary?rider_id=${RIDER}&month=${month}`);
+
+    // Hero
+    qs('heroBalance').textContent = fmt(s.net_balance);
+    qs('heroRate').innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+      Savings Rate: ${s.savings_rate}%`;
+
+    // Stats
+    qs('statsGrid').innerHTML = `
+      <div class="stat-card" style="animation-delay:.05s">
+        <div class="stat-icon-wrap income">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+        </div>
+        <div class="stat-label">Total Income</div>
+        <div class="stat-value">₱${fmt(s.total_income)}</div>
+        <div class="stat-sub up">${s.income_count} transactions</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.10s">
+        <div class="stat-icon-wrap expense">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="stat-label">Total Expenses</div>
+        <div class="stat-value">₱${fmt(s.total_expenses)}</div>
+        <div class="stat-sub dn">${s.expense_count} transactions</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.15s">
+        <div class="stat-icon-wrap balance">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <div class="stat-label">Net Balance</div>
+        <div class="stat-value">₱${fmt(s.net_balance)}</div>
+        <div class="stat-sub up">Income − Expenses</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.20s">
+        <div class="stat-icon-wrap savings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div class="stat-label">Savings Rate</div>
+        <div class="stat-value">${s.savings_rate}%</div>
+        <div class="savings-track"><div class="savings-fill" id="savBar"></div></div>
+      </div>
+    `;
+    setTimeout(() => { const b = qs('savBar'); if(b) b.style.width = s.savings_rate + '%'; }, 400);
+    hideErr();
+  } catch (e) {
+    showErr(`Summary error: ${e.message}. Is the server running on ${API}?`);
+  }
+}
+
+/* ════════════════════════════════════════
+   LOAD DAILY CHART
+════════════════════════════════════════ */
+async function loadChart() {
+  const now   = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  try {
+    const { data } = await api(`/transactions/daily?rider_id=${RIDER}&month=${month}`);
+    const last7 = data.slice(-7);
+    if (!last7.length) { qs('chartBars').innerHTML = '<div class="empty"><p>No data this month</p></div>'; return; }
+
+    const max = Math.max(...last7.map(d => Math.max(parseFloat(d.income||0), parseFloat(d.expense||0))), 1);
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    qs('chartBars').innerHTML = last7.map(d => {
+      const label = days[new Date(d.tx_date).getDay()];
+      const ih = Math.round((parseFloat(d.income||0)/max)*90);
+      const eh = Math.round((parseFloat(d.expense||0)/max)*90);
+      return `
+        <div class="bar-col">
+          <div class="bar-track">
+            <div class="bar-income" data-h="${ih}" style="height:0%"></div>
+            <div class="bar-expense" data-h="${eh}" style="height:0%"></div>
+          </div>
+          <div class="bar-label">${label}</div>
+        </div>`;
+    }).join('');
+
+    // Animate in
+    setTimeout(() => {
+      document.querySelectorAll('.bar-income,.bar-expense').forEach(b => {
+        b.style.height = b.dataset.h + '%';
+      });
+    }, 100);
+  } catch (e) {
+    qs('chartBars').innerHTML = '<div class="empty"><p>Chart unavailable</p></div>';
+  }
+}
+
+/* ════════════════════════════════════════
+   LOAD TRANSACTIONS
+════════════════════════════════════════ */
+async function loadTransactions(search = '') {
+  const list = qs('txList');
+  list.innerHTML = '<div class="skeleton skel-tx"></div><div class="skeleton skel-tx"></div><div class="skeleton skel-tx"></div>';
+
+  try {
+    const params = new URLSearchParams({ rider_id: RIDER, limit: 20, sort: 'tx_date', order: 'desc' });
+    if (search) params.set('search', search);
+    const { data } = await api(`/transactions?${params}`);
+    allTransactions = data;
+    renderTxList(data);
+  } catch (e) {
+    list.innerHTML = `<div class="empty"><p>Could not load transactions: ${e.message}</p></div>`;
+  }
+}
+
+function renderTxList(list) {
+  const el = qs('txList');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <p>No transactions found</p></div>`;
+    return;
+  }
+
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  el.innerHTML = list.map(tx => {
+    const d = new Date(tx.tx_date);
+    const dateStr = `${d.getDate()} ${months[d.getMonth()]}`;
+    const isIncome = tx.type === 'income';
+    const arrowSvg = isIncome
+      ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`
+      : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
+
+    return `
+      <div class="tx-item" onclick="toast('${tx.description}: ₱${fmt(tx.amount)}', '${tx.type}')">
+        <div class="tx-icon ${tx.type}">${arrowSvg}</div>
+        <div class="tx-info">
+          <div class="tx-desc">${tx.description}</div>
+          <div class="tx-meta">
+            <span class="tx-date">${dateStr}</span>
+            ${tx.source ? `<span class="tx-badge">${tx.source}</span>` : ''}
+            ${tx.category_name ? `<span class="tx-badge">${tx.category_name}</span>` : ''}
+          </div>
+        </div>
+        <div class="tx-right">
+          <div class="tx-amount ${tx.type}">${isIncome ? '+' : '−'}₱${fmt(tx.amount)}</div>
+          <div class="tx-acct">${tx.wallet_name}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function handleSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadTransactions(qs('txSearch').value.trim()), 350);
+}
+
+/* ════════════════════════════════════════
+   LOAD WALLETS
+════════════════════════════════════════ */
+async function loadWallets() {
+  qs('walletsScroll').innerHTML = [1,2,3,4].map(() =>
+    `<div class="skeleton" style="height:80px;min-width:130px;border-radius:var(--radius-lg)"></div>`
+  ).join('');
+
+  try {
+    const { data } = await api(`/wallets?rider_id=${RIDER}`);
+
+    // Build wallet map for form dropdown
+    walletMap = {};
+    const sel = qs('fWallet');
+    sel.innerHTML = data.map(w => {
+      walletMap[w.id] = w;
+      return `<option value="${w.id}">${w.name}</option>`;
+    }).join('');
+
+    const colorMap = { gcash:'gcash', maribank:'maribank', shopee:'shopee', cash:'cash' };
+
+    qs('walletsScroll').innerHTML = data.map(w => {
+      const cls = w.color_class || 'cash';
+      return `
+        <div class="wallet-chip ${cls}" onclick="toast('${w.name}: ₱${fmt(w.balance)}', 'info')">
+          <div class="w-name">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+            ${w.name}
+          </div>
+          <div class="w-bal">₱${fmt(w.balance)}</div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    qs('walletsScroll').innerHTML = `<div style="color:var(--error);font-size:13px;padding:8px">Could not load wallets: ${e.message}</div>`;
+  }
+}
+
+/* ════════════════════════════════════════
+   LOAD CATEGORIES
+════════════════════════════════════════ */
+async function loadCategories() {
+  try {
+    const { data } = await api('/categories');
+    const chips = qs('catChips');
+    chips.innerHTML = data.map((c, i) => `
+      <button class="cat-chip${i===0?' active':''}" data-id="${c.id}" onclick="selectCat(this)">${c.name}</button>
+    `).join('');
+    if (data.length) selectedCatId = data[0].id;
+  } catch (e) {
+    qs('catChips').innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Categories unavailable</span>';
+  }
+}
+
+function selectCat(el) {
+  document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  selectedCatId = parseInt(el.dataset.id);
+}
+
+/* ════════════════════════════════════════
+   FORM: TYPE TOGGLE
+════════════════════════════════════════ */
+function setType(t) {
+  currentType = t;
+  qs('btnIncome').className  = `type-btn${t==='income'  ? ' active income'  : ''}`;
+  qs('btnExpense').className = `type-btn${t==='expense' ? ' active expense' : ''}`;
+}
+
+function toggleForm() {
+  qs('formCard').classList.toggle('collapsed');
+}
+
+/* ════════════════════════════════════════
+   SUBMIT TRANSACTION
+════════════════════════════════════════ */
+async function submitTransaction() {
+  const desc      = qs('fDesc').value.trim();
+  const amount    = parseFloat(qs('fAmount').value);
+  const wallet_id = parseInt(qs('fWallet').value);
+  const source    = qs('fSource').value;
+  const tx_date   = qs('fDate').value;
+
+  if (!desc)                    { toast('Please enter a description', 'error'); return; }
+  if (!amount || amount <= 0)   { toast('Please enter a valid amount', 'error'); return; }
+  if (!wallet_id)               { toast('Please select a wallet', 'error'); return; }
+
+  const btn = qs('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner"></div> Saving…`;
+
+  try {
+    const { data } = await api('/transactions', {
+      method: 'POST',
+      body: JSON.stringify({
+        rider_id: RIDER,
+        wallet_id,
+        category_id: selectedCatId || undefined,
+        type: currentType,
+        amount,
+        description: desc,
+        source: source || undefined,
+        tx_date: tx_date || undefined,
+      }),
+    });
+
+    toast(`${currentType === 'income' ? 'Income' : 'Expense'} of ₱${fmt(amount)} saved!`,
+      currentType === 'income' ? 'success' : 'warning');
+
+    // Reset form
+    qs('fDesc').value   = '';
+    qs('fAmount').value = '';
+    setType('income');
+
+    // Refresh all data
+    await loadAll();
+
+  } catch (e) {
+    toast(`Save failed: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      Add Transaction`;
+  }
+}
+
+/* ════════════════════════════════════════
+   LOAD ALL  (called on init + refresh)
+════════════════════════════════════════ */
+async function loadAll() {
+  hideErr();
+  await Promise.all([
+    loadSummary(),
+    loadChart(),
+    loadTransactions(),
+    loadWallets(),
+  ]);
+}
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+(async function init() {
+  // Greeting
+  const hr = new Date().getHours();
+  qs('greeting').textContent =
+    hr < 12 ? 'Good morning, Erwin 👋' :
+    hr < 17 ? 'Good afternoon, Erwin 👋' : 'Good evening, Erwin 👋';
+
+  // Period label
+  const now = new Date();
+  qs('periodLabel').textContent =
+    now.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' }) + ' · SFD Rider Finance';
+
+  // Today's date in form
+  qs('fDate').value = now.toISOString().split('T')[0];
+
+  // Load
+  await Promise.all([loadAll(), loadCategories()]);
+})();
+
+
+/* ── NEON KEEPALIVE ──────────────────────────────
+   Ping /health every 4 minutes so Neon doesn't
+   auto-suspend the compute while the app is open.
+─────────────────────────────────────────────── */
+setInterval(async () => {
+  try { await fetch('/health'); } catch(_) {}
+}, 4 * 60 * 1000);
+
+/* Scroll shadow on nav */
+window.addEventListener('scroll', () => {
+  qs('topNav').classList.toggle('scrolled', window.scrollY > 8);
+});
+</script>
+</body>
+</html>

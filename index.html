@@ -1,0 +1,2267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="google" content="notranslate">
+  <title>SFD Rider Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+  /* ════════════════════════════════════════════════
+     RESET & TOKENS
+  ════════════════════════════════════════════════ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Brand */
+    --orange:        #FF6621;
+    --orange-bg:     #FFF4EE;
+    --orange-border: #FFD0B5;
+    --orange-dark:   #E04E0A;
+    --orange-glow:   rgba(255,102,33,0.18);
+
+    --green:        #16A34A;
+    --green-bg:     #F0FDF4;
+    --green-border: #A7F3C0;
+    --green-dark:   #166534;
+    --green-glow:   rgba(22,163,74,0.15);
+
+    --blue:    #2563EB;
+    --blue-bg: #EFF6FF;
+
+    --red:    #DC2626;
+    --red-bg: #FEF2F2;
+
+    /* Neutrals */
+    --bg:          #F4F5F7;
+    --surface:     #FFFFFF;
+    --surface-2:   #F9FAFB;
+    --border:      #E5E7EB;
+    --border-2:    #D1D5DB;
+    --text:        #111827;
+    --text-2:      #374151;
+    --text-muted:  #6B7280;
+    --text-sub:    #9CA3AF;
+
+    /* Shadows */
+    --sh-xs: 0 1px 3px rgba(0,0,0,0.05);
+    --sh-sm: 0 2px 8px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04);
+    --sh-md: 0 4px 18px rgba(0,0,0,0.09), 0 2px 6px rgba(0,0,0,0.05);
+    --sh-lg: 0 10px 34px rgba(0,0,0,0.11), 0 4px 12px rgba(0,0,0,0.06);
+    --sh-xl: 0 20px 56px rgba(0,0,0,0.14), 0 8px 20px rgba(0,0,0,0.08);
+
+    /* Radii */
+    --r-xs:  8px;
+    --r-sm:  12px;
+    --r-md:  16px;
+    --r-lg:  20px;
+    --r-xl:  24px;
+    --r-2xl: 32px;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  /* ════════════════════════════════════════════════
+     PAGE STACK ENGINE
+  ════════════════════════════════════════════════ */
+  #app {
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .page {
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    display: flex;
+    flex-direction: column;
+    will-change: transform, opacity;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* Scroll wrapper inside pages */
+  .pg-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: max(32px, env(safe-area-inset-bottom));
+  }
+
+  /* ════════════════════════════════════════════════
+     LOGIN PAGE
+  ════════════════════════════════════════════════ */
+  #loginPage {
+    background: linear-gradient(175deg, #FFFAF7 0%, #FFF0E5 45%, #FFE3CC 100%);
+    align-items: center;
+    justify-content: center;
+    padding: 28px 20px;
+    overflow-y: auto;
+  }
+
+  /* Decorative bg circles */
+  #loginPage::before,
+  #loginPage::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  #loginPage::before {
+    width: 340px; height: 340px;
+    background: radial-gradient(circle, rgba(255,102,33,0.09) 0%, transparent 70%);
+    top: -80px; right: -80px;
+  }
+
+  #loginPage::after {
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(255,102,33,0.06) 0%, transparent 70%);
+    bottom: -60px; left: -60px;
+  }
+
+  .login-wrap {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Logo ring */
+  .login-logo-ring {
+    width: 92px; height: 92px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    margin-bottom: 24px;
+  }
+
+  .login-logo-ring::before {
+    content: '';
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    border-radius: 50%;
+    border: 2px dashed var(--orange-border);
+    animation: spin 14s linear infinite;
+  }
+
+  .login-logo-ring::after {
+    content: '';
+    position: absolute; top: 6px; right: 6px; bottom: 6px; left: 6px;
+    border-radius: 50%;
+    background: var(--orange-bg);
+    border: 2px solid var(--orange-border);
+  }
+
+  .login-logo-inner {
+    position: relative; z-index: 1;
+    width: 66px; height: 66px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, var(--orange) 0%, var(--orange-dark) 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 24px var(--orange-glow), 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .login-brand-title {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: -0.6px;
+    color: var(--text);
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .login-brand-title span { color: var(--orange); }
+
+  .login-brand-sub {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 400;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  /* Login card */
+  .login-card {
+    background: var(--surface);
+    border-radius: var(--r-xl);
+    padding: 28px 24px 24px;
+    width: 100%;
+    box-shadow: var(--sh-lg);
+    border: 1.5px solid rgba(255,255,255,0.8);
+  }
+
+  /* ════════════════════════════════════════════════
+     SHARED FORM ELEMENTS
+  ════════════════════════════════════════════════ */
+  .field-group { margin-bottom: 16px; }
+
+  .field-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    margin-bottom: 7px;
+  }
+
+  .field-label svg { flex-shrink: 0; }
+
+  .field-input {
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-sm);
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 500;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.15s;
+    -webkit-appearance: none;
+  }
+
+  .field-input::placeholder { color: var(--text-sub); font-weight: 400; }
+
+  .field-input:focus {
+    background: var(--surface);
+    border-color: var(--orange);
+    box-shadow: 0 0 0 4px rgba(255,102,33,0.10);
+  }
+
+  .field-input.focus-green:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 4px rgba(22,163,74,0.10);
+  }
+
+  .field-input[readonly] {
+    color: var(--text-muted);
+    cursor: not-allowed;
+    background: var(--surface-2);
+    border-color: var(--border);
+    box-shadow: none;
+  }
+
+  /* ════════════════════════════════════════════════
+     BUTTONS
+  ════════════════════════════════════════════════ */
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 15px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    letter-spacing: 0.3px;
+    border: none;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%);
+    color: #fff;
+    box-shadow: 0 4px 18px var(--orange-glow);
+  }
+
+  .btn-primary:hover { box-shadow: 0 6px 24px rgba(255,102,33,0.30); transform: translateY(-1px); }
+  .btn-primary:active { transform: scale(0.97); }
+
+  .btn-green-solid {
+    background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+    color: #fff;
+    box-shadow: 0 4px 16px var(--green-glow);
+  }
+
+  .btn-green-solid:hover { box-shadow: 0 6px 22px rgba(22,163,74,0.25); transform: translateY(-1px); }
+  .btn-green-solid:active { transform: scale(0.97); }
+
+  .btn-outline-blue {
+    background: var(--surface);
+    color: var(--blue);
+    border: 1.5px solid #BFDBFE;
+    box-shadow: none;
+  }
+
+  .btn-outline-blue:hover { background: var(--blue-bg); }
+
+  .btn-ghost {
+    background: var(--surface-2);
+    color: var(--text-2);
+    border: 1.5px solid var(--border);
+    box-shadow: none;
+  }
+
+  .btn-ghost:hover { background: var(--border); }
+
+  .btn-maps {
+    background: var(--surface);
+    color: var(--text-2);
+    border: 1.5px solid var(--border);
+    box-shadow: none;
+    font-size: 13px;
+    margin-top: 10px;
+    margin-bottom: 0;
+  }
+
+  .btn-maps:hover { border-color: var(--orange); color: var(--orange); }
+
+  /* ════════════════════════════════════════════════
+     APP HEADER (Home page)
+  ════════════════════════════════════════════════ */
+  .app-header {
+    background: var(--surface);
+    height: 62px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--sh-xs);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  .hdr-hamburger {
+    width: 40px; height: 40px;
+    border: none; border-radius: var(--r-xs); background: transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-2);
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .hdr-hamburger:hover { background: var(--surface-2); }
+
+  .hdr-logo {
+    display: flex; align-items: center; gap: 9px;
+    position: absolute; left: 50%; transform: translateX(-50%);
+  }
+
+  .hdr-logo-icon {
+    width: 34px; height: 34px;
+    background: linear-gradient(145deg, var(--orange), var(--orange-dark));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 10px var(--orange-glow);
+    flex-shrink: 0;
+  }
+
+  .hdr-logo-text {
+    font-size: 16px; font-weight: 800;
+    letter-spacing: -0.3px; color: var(--text);
+  }
+
+  .hdr-logo-text em { color: var(--orange); font-style: normal; }
+
+  .hdr-right { display: flex; align-items: center; gap: 4px; }
+
+  .hdr-icon-btn {
+    width: 40px; height: 40px;
+    border: none; border-radius: var(--r-xs); background: transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted);
+    transition: background 0.15s;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .hdr-icon-btn:hover { background: var(--surface-2); }
+
+  .notif-badge {
+    position: absolute; top: 4px; right: 4px;
+    min-width: 17px; height: 17px;
+    padding: 0 4px;
+    background: var(--orange);
+    color: #fff;
+    border-radius: 50px;
+    font-size: 10px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--surface);
+    line-height: 1;
+    box-sizing: content-box;
+  }
+
+  .notif-badge.pulse { animation: badgePulse 0.45s cubic-bezier(0.34,1.56,0.64,1); }
+
+  @keyframes badgePulse {
+    0%   { transform: scale(1);   }
+    45%  { transform: scale(1.35); }
+    100% { transform: scale(1);   }
+  }
+
+  /* hdr-icon-btn press feedback */
+  .hdr-icon-btn:active { transform: scale(0.92); }
+
+  /* ════════════════════════════════════════════════
+     SUB-PAGE HEADER (Find/Encode pages)
+  ════════════════════════════════════════════════ */
+  .sub-header {
+    background: var(--surface);
+    height: 62px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--sh-xs);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  .back-btn {
+    width: 38px; height: 38px;
+    border: none; border-radius: var(--r-xs);
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-2);
+    transition: background 0.15s, transform 0.12s;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .back-btn:hover { background: var(--border); }
+  .back-btn:active { transform: scale(0.90); }
+
+  .sub-header-title {
+    font-size: 17px; font-weight: 700;
+    color: var(--text); flex: 1;
+    letter-spacing: -0.2px;
+  }
+
+  .credit-chip {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    border-radius: 50px;
+    font-size: 12px; font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .chip-orange { background: var(--orange-bg); color: var(--orange); }
+  .chip-green  { background: var(--green-bg);  color: var(--green);  }
+
+  /* ════════════════════════════════════════════════
+     HOME — USER SECTION
+  ════════════════════════════════════════════════ */
+  .user-section {
+    background: var(--surface);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .user-left { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1; }
+
+  .user-avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--orange-bg);
+    border: 2.5px solid var(--orange-border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .user-greeting {
+    font-size: 13px; font-weight: 400;
+    color: var(--text-muted); margin-bottom: 3px;
+  }
+
+  .user-name {
+    font-size: 18px; font-weight: 800;
+    color: var(--text); letter-spacing: -0.3px;
+    line-height: 1.1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 160px;
+  }
+
+  /* Credits badge */
+  .credits-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--orange-bg);
+    border: 1.5px solid var(--orange-border);
+    border-radius: var(--r-md);
+    padding: 9px 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .credits-badge:hover { background: var(--orange-border); }
+
+  .credits-badge-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(145deg, var(--orange), var(--orange-dark));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px var(--orange-glow);
+  }
+
+  .credits-badge-info { display: flex; flex-direction: column; }
+
+  .credits-label {
+    font-size: 10px; font-weight: 600;
+    color: var(--orange-dark); text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  .credits-value {
+    font-size: 18px; font-weight: 800;
+    color: var(--orange); line-height: 1.1; margin-top: 1px;
+    letter-spacing: -0.3px;
+  }
+
+  .credits-badge.low { background: var(--red-bg); border-color: rgba(220,38,38,0.25); }
+  .credits-badge.low .credits-label { color: var(--red); }
+  .credits-badge.low .credits-value { color: var(--red); }
+  .credits-badge.low .credits-badge-icon {
+    background: linear-gradient(145deg, var(--red), #B91C1C);
+    box-shadow: 0 2px 8px rgba(220,38,38,0.20);
+  }
+
+  /* ════════════════════════════════════════════════
+     HOME — ACTION CARDS
+  ════════════════════════════════════════════════ */
+  .cards-wrap {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .action-card {
+    background: var(--surface);
+    border-radius: var(--r-xl);
+    padding: 0;
+    box-shadow: var(--sh-md);
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    min-height: 190px;
+    display: flex;
+    flex-direction: column;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .action-card:hover { transform: translateY(-2px); box-shadow: var(--sh-lg); }
+  .action-card:active { transform: scale(0.983); box-shadow: var(--sh-sm); }
+
+  /* Left accent stripe */
+  .action-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 5px;
+    border-radius: var(--r-xl) 0 0 var(--r-xl);
+  }
+
+  .card-orange::before { background: linear-gradient(180deg, var(--orange), var(--orange-dark)); }
+  .card-green::before  { background: linear-gradient(180deg, var(--green),  var(--green-dark));  }
+
+  /* Oversized watermark */
+  .card-watermark {
+    position: absolute;
+    right: -22px; bottom: -22px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .card-orange .card-watermark { color: var(--orange); opacity: 0.055; }
+  .card-green  .card-watermark { color: var(--green);  opacity: 0.055; }
+
+  .card-body {
+    padding: 26px 24px 22px 28px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-icon-box {
+    width: 54px; height: 54px;
+    border-radius: var(--r-sm);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 18px;
+    flex-shrink: 0;
+  }
+
+  .card-orange .card-icon-box { background: var(--orange-bg); color: var(--orange); }
+  .card-green  .card-icon-box { background: var(--green-bg);  color: var(--green);  }
+
+  .card-title {
+    font-size: 24px; font-weight: 800;
+    color: var(--text); letter-spacing: -0.5px;
+    margin-bottom: 7px; line-height: 1.1;
+  }
+
+  .card-desc {
+    font-size: 14px; color: var(--text-muted); font-weight: 400;
+    line-height: 1.5; margin-bottom: 0;
+  }
+
+  .card-footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 18px;
+  }
+
+  .card-pill {
+    font-size: 12px; font-weight: 700;
+    padding: 5px 13px; border-radius: 50px;
+  }
+
+  .card-orange .card-pill { background: var(--orange-bg); color: var(--orange); }
+  .card-green  .card-pill { background: var(--green-bg);  color: var(--green);  }
+
+  .card-arrow-btn {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid;
+    transition: transform 0.2s, background 0.15s;
+    flex-shrink: 0;
+  }
+
+  .card-orange .card-arrow-btn {
+    border-color: var(--orange-border);
+    background: var(--orange-bg);
+    color: var(--orange);
+  }
+
+  .card-green  .card-arrow-btn {
+    border-color: var(--green-border);
+    background: var(--green-bg);
+    color: var(--green);
+  }
+
+  .action-card:hover .card-arrow-btn { transform: translateX(3px); }
+
+  /* ════════════════════════════════════════════════
+     INNER PAGE CONTENT
+  ════════════════════════════════════════════════ */
+  .pg-content { padding: 16px; }
+
+  .section-card {
+    background: var(--surface);
+    border-radius: var(--r-xl);
+    padding: 24px 20px;
+    box-shadow: var(--sh-sm);
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+
+  .section-eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-bottom: 18px;
+  }
+
+  .eyebrow-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  .dot-o { background: var(--orange); }
+  .dot-g { background: var(--green); }
+
+  /* Coords row */
+  .coords-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px; background: var(--border); margin: 20px 0;
+  }
+
+  /* ════════════════════════════════════════════════
+     STATUS MESSAGES
+  ════════════════════════════════════════════════ */
+  .status-msg {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; font-weight: 500;
+    padding: 12px 14px; border-radius: var(--r-xs);
+    margin-top: 12px; line-height: 1.4;
+    border: 1px solid transparent;
+  }
+
+  .status-msg svg, .status-msg .dot-loader { flex-shrink: 0; }
+
+  .st-default { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); }
+  .st-success { background: var(--green-bg);  color: var(--green);       border-color: var(--green-border); }
+  .st-error   { background: var(--red-bg);    color: var(--red);         border-color: rgba(220,38,38,0.2); }
+  .st-warning { background: var(--orange-bg); color: var(--orange);      border-color: var(--orange-border); }
+  .st-loading { background: var(--blue-bg);   color: var(--blue);        border-color: #BFDBFE; }
+
+  /* Dot loader */
+  .dot-loader { display: inline-flex; gap: 4px; align-items: center; }
+  .dot-loader span {
+    width: 5px; height: 5px; background: currentColor;
+    border-radius: 50%; animation: dotPop 1.2s infinite;
+  }
+  .dot-loader span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-loader span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes dotPop {
+    0%, 80%, 100% { opacity: 0.2; transform: scale(0.7); }
+    40%           { opacity: 1;   transform: scale(1);   }
+  }
+
+  /* ════════════════════════════════════════════════
+     AUTOCOMPLETE DROPDOWN
+  ════════════════════════════════════════════════ */
+  .search-wrap { position: relative; }
+
+  .autocomplete-dropdown {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border-2);
+    border-radius: var(--r-md);
+    max-height: 240px; overflow-y: auto;
+    z-index: 200; display: none;
+    box-shadow: var(--sh-lg);
+  }
+
+  .autocomplete-dropdown::-webkit-scrollbar { width: 3px; }
+  .autocomplete-dropdown::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+
+  .dropdown-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 16px;
+    color: var(--text-2); cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px; font-weight: 500;
+    transition: background 0.1s;
+  }
+
+  .dropdown-item:last-child { border-bottom: none; }
+  .dropdown-item:hover { background: var(--orange-bg); color: var(--orange); }
+  .dropdown-item svg { color: var(--text-sub); flex-shrink: 0; }
+
+  /* ════════════════════════════════════════════════
+     RESULT CARDS
+  ════════════════════════════════════════════════ */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 16px; margin-top: 12px;
+    box-shadow: var(--sh-xs);
+  }
+
+  .result-header {
+    display: flex; align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 12px; gap: 10px;
+  }
+
+  .result-name { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.3; }
+
+  .distance-badge {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--orange-bg); color: var(--orange);
+    border: 1px solid var(--orange-border);
+    padding: 5px 10px; border-radius: 50px;
+    font-size: 12px; font-weight: 700;
+    white-space: nowrap; flex-shrink: 0;
+  }
+
+  .map-preview {
+    height: 170px; width: 100%;
+    border-radius: var(--r-xs);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  /* ════════════════════════════════════════════════
+     EMPTY STATE
+  ════════════════════════════════════════════════ */
+  .empty-state {
+    text-align: center; padding: 36px 20px;
+    color: var(--text-sub);
+  }
+
+  .empty-state svg { margin: 0 auto 14px; display: block; }
+  .empty-state p { font-size: 14px; font-weight: 500; }
+  .empty-state .empty-sub { font-size: 12px; color: var(--text-sub); margin-top: 4px; font-weight: 400; }
+
+  /* ════════════════════════════════════════════════
+     NOTIFICATIONS PAGE
+  ════════════════════════════════════════════════ */
+  .notif-clearall-btn {
+    font-size: 12px; font-weight: 700;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    padding: 7px 13px; border-radius: 50px;
+    cursor: pointer; font-family: inherit;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.12s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .notif-clearall-btn:hover  { background: var(--red-bg); color: var(--red); border-color: rgba(220,38,38,0.2); }
+  .notif-clearall-btn:active { transform: scale(0.95); }
+
+  .notif-item {
+    display: flex; gap: 13px; align-items: flex-start;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px 14px 14px 16px;
+    margin-bottom: 10px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.5s ease, border-color 0.5s ease;
+    animation: notifSlideIn 0.32s cubic-bezier(0.25,0.46,0.45,0.94) both;
+  }
+
+  .notif-item::before {
+    content: '';
+    position: absolute; top: 0; left: 0; bottom: 0; width: 4px;
+    background: transparent;
+    transition: background 0.5s ease;
+  }
+
+  .notif-item.unread {
+    background: var(--green-bg);
+    border-color: var(--green-border);
+  }
+
+  .notif-item.unread::before { background: var(--green); }
+
+  .notif-icon {
+    width: 42px; height: 42px;
+    border-radius: var(--r-sm);
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    color: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.5s ease, border-color 0.5s ease;
+  }
+
+  .notif-item.unread .notif-icon {
+    background: var(--surface);
+    border-color: var(--green-border);
+  }
+
+  .notif-content { flex: 1; min-width: 0; }
+
+  .notif-title-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+
+  .notif-title {
+    font-size: 14px; font-weight: 700; color: var(--text);
+    letter-spacing: -0.1px;
+  }
+
+  .notif-unread-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+    box-shadow: 0 0 0 3px var(--green-bg);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  .notif-message {
+    font-size: 13px; color: var(--text-muted);
+    margin-top: 3px; line-height: 1.5;
+    word-break: break-word;
+  }
+
+  .notif-time {
+    font-size: 11px; color: var(--text-sub);
+    margin-top: 7px; font-weight: 600;
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  @keyframes notifSlideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ════════════════════════════════════════════════
+     TOAST NOTIFICATION
+  ════════════════════════════════════════════════ */
+  .notif-toast-wrap {
+    position: fixed;
+    top: max(14px, env(safe-area-inset-top));
+    left: 0; right: 0;
+    z-index: 3000;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 0 14px;
+    pointer-events: none;
+  }
+
+  .notif-toast {
+    pointer-events: auto;
+    width: 100%; max-width: 380px;
+    background: var(--surface);
+    border: 1.5px solid var(--green-border);
+    border-radius: var(--r-md);
+    box-shadow: var(--sh-lg);
+    padding: 13px 14px;
+    display: flex; gap: 11px; align-items: flex-start;
+    transform: translateY(-130%);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
+    cursor: pointer;
+  }
+
+  .notif-toast.show { transform: translateY(0); opacity: 1; }
+
+  .notif-toast-icon {
+    width: 38px; height: 38px; flex-shrink: 0;
+    border-radius: var(--r-xs);
+    background: var(--green-bg); color: var(--green);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .notif-toast-title {
+    font-size: 13px; font-weight: 700; color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .notif-toast-msg {
+    font-size: 12.5px; color: var(--text-muted);
+    line-height: 1.4; word-break: break-word;
+  }
+
+  /* ════════════════════════════════════════════════
+     SUCCESS MODAL
+  ════════════════════════════════════════════════ */
+  .modal {
+    display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000;
+    background: rgba(17,24,39,0.55);
+    backdrop-filter: blur(8px);
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+
+  .modal.show { display: flex; }
+
+  .modal-card {
+    background: var(--surface);
+    border-radius: var(--r-xl);
+    padding: 36px 28px;
+    text-align: center;
+    max-width: 340px; width: 100%;
+    box-shadow: var(--sh-xl);
+    animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .modal-icon {
+    width: 74px; height: 74px;
+    background: var(--green-bg);
+    border: 2px solid var(--green-border);
+    border-radius: 22px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+  }
+
+  .modal-title {
+    font-size: 22px; font-weight: 800;
+    color: var(--green); margin-bottom: 10px;
+    letter-spacing: -0.4px;
+  }
+
+  .modal-msg {
+    font-size: 14px; color: var(--text-muted);
+    line-height: 1.6; margin-bottom: 20px;
+  }
+
+  .credit-gain-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--green-bg); color: var(--green);
+    border: 1px solid var(--green-border);
+    padding: 7px 16px; border-radius: 50px;
+    font-weight: 700; font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .btn-modal-close {
+    width: 100%; padding: 14px;
+    background: var(--surface-2);
+    color: var(--text-2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-sm);
+    font-size: 15px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+
+  .btn-modal-close:hover { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+
+  @keyframes popIn {
+    0%   { transform: scale(0.82) translateY(20px); opacity: 0; }
+    100% { transform: scale(1)    translateY(0);    opacity: 1; }
+  }
+
+  /* ════════════════════════════════════════════════
+     MISC
+  ════════════════════════════════════════════════ */
+  .notranslate { translate: no; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+
+  /* Leaflet popup override */
+  .leaflet-popup-content-wrapper {
+    border-radius: 10px !important;
+    box-shadow: var(--sh-md) !important;
+    font-family: inherit !important;
+  }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+<!-- ╔══════════════════════════════════════════════╗
+     ║  LOGIN PAGE                                  ║
+     ╚══════════════════════════════════════════════╝ -->
+<div id="loginPage" class="page"
+     style="align-items:center; justify-content:center;
+            padding:32px 20px; overflow-y:auto;
+            background:linear-gradient(175deg,#FFFAF7 0%,#FFF0E5 45%,#FFE3CC 100%);">
+
+  <!-- bg decorative blobs -->
+  <div style="position:absolute;width:320px;height:320px;border-radius:50%;
+              background:radial-gradient(circle,rgba(255,102,33,0.10) 0%,transparent 70%);
+              top:-80px;right:-80px;pointer-events:none;"></div>
+  <div style="position:absolute;width:240px;height:240px;border-radius:50%;
+              background:radial-gradient(circle,rgba(255,102,33,0.07) 0%,transparent 70%);
+              bottom:-60px;left:-60px;pointer-events:none;"></div>
+
+  <div class="login-wrap">
+
+      <!-- Logo -->
+      <div class="login-logo-ring">
+        <div class="login-logo-inner">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="1" y="3" width="15" height="13" rx="2"/>
+            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+            <circle cx="5.5" cy="18.5" r="2.5"/>
+            <circle cx="18.5" cy="18.5" r="2.5"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="login-brand-title"><span>SFD</span> Rider Hub</div>
+      <div class="login-brand-sub">Welcome back! Sign in to continue.</div>
+
+      <!-- Card -->
+      <div class="login-card">
+
+        <div class="field-group">
+          <div class="field-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Rider ID / Phone Number
+          </div>
+          <input type="text" class="field-input" id="riderIdInput"
+                 placeholder="e.g. SFD-001 or 09XXXXXXXXX"
+                 autocomplete="off" translate="no" spellcheck="false">
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Full Name
+            <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-sub);">(optional for new)</span>
+          </div>
+          <input type="text" class="field-input" id="riderNameInput"
+                 placeholder="Type your full name"
+                 autocomplete="off" translate="no" spellcheck="false">
+        </div>
+
+        <button class="btn btn-primary" onclick="loginRider()" style="margin-top:4px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          Enter Application
+        </button>
+
+        <div id="loginStatus" class="status-msg st-default" style="display:none;"></div>
+
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;
+                    margin-top:20px;color:var(--text-sub);font-size:12px;font-weight:500;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
+          </svg>
+          Your data is safe &amp; encrypted
+        </div>
+      </div>
+
+  </div>
+</div><!-- /loginPage -->
+
+
+<!-- ╔══════════════════════════════════════════════╗
+     ║  HOME PAGE                                   ║
+     ╚══════════════════════════════════════════════╝ -->
+<div id="homePage" class="page" style="display:none; transform:translateY(30px); opacity:0;">
+
+  <!-- Header -->
+  <div class="app-header">
+    <button class="hdr-hamburger" onclick="openMenu()">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="15" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+
+    <div class="hdr-logo">
+      <div class="hdr-logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="3" width="15" height="13" rx="2"/>
+          <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+          <circle cx="5.5" cy="18.5" r="2.5"/>
+          <circle cx="18.5" cy="18.5" r="2.5"/>
+        </svg>
+      </div>
+      <div class="hdr-logo-text"><em>SFD</em> Rider Hub</div>
+    </div>
+
+    <div class="hdr-right">
+      <button class="hdr-icon-btn" onclick="openNotifications()" aria-label="Notifications">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span class="notif-badge notranslate" id="notifBadge" style="display:none;">0</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Scroll body -->
+  <div class="pg-body">
+
+    <!-- User section -->
+    <div class="user-section">
+      <div class="user-left">
+        <div class="user-avatar">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="user-greeting" id="homeGreeting">Good morning,</div>
+          <div class="user-name notranslate" id="lblRiderName">—</div>
+        </div>
+      </div>
+
+      <div class="credits-badge" id="creditsBadge">
+        <div class="credits-badge-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+            <line x1="1" y1="10" x2="23" y2="10"/>
+          </svg>
+        </div>
+        <div class="credits-badge-info">
+          <span class="credits-label">My Credits</span>
+          <span class="credits-value notranslate"><span id="creditNum">0</span> Credits</span>
+        </div>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linecap="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Action cards -->
+    <div class="cards-wrap">
+
+      <!-- FIND SELLER -->
+      <div class="action-card card-orange" onclick="goTo('findPage')">
+        <!-- watermark -->
+        <svg class="card-watermark" width="170" height="170" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.9">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <div class="card-body">
+          <div class="card-icon-box">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </div>
+          <div class="card-title notranslate">Find Seller</div>
+          <div class="card-desc notranslate">Search seller by name and get turn-by-turn directions</div>
+          <div class="card-footer-row">
+            <span class="card-pill notranslate">−1 Credit per search</span>
+            <div class="card-arrow-btn">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENCODE SELLER -->
+      <div class="action-card card-green" onclick="goTo('encodePage')">
+        <!-- watermark -->
+        <svg class="card-watermark" width="170" height="170" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.9">
+          <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+          <circle cx="12" cy="10" r="3"/>
+        </svg>
+        <div class="card-body">
+          <div class="card-icon-box">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+          </div>
+          <div class="card-title notranslate">Encode Seller</div>
+          <div class="card-desc notranslate">Encode and save a new seller location to the database</div>
+          <div class="card-footer-row">
+            <span class="card-pill notranslate">+2 Credits per save</span>
+            <div class="card-arrow-btn">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /cards-wrap -->
+  </div><!-- /pg-body -->
+</div><!-- /homePage -->
+
+
+<!-- ╔══════════════════════════════════════════════╗
+     ║  FIND SELLER PAGE                            ║
+     ╚══════════════════════════════════════════════╝ -->
+<div id="findPage" class="page" style="display:none; transform:translateX(100%); opacity:0;">
+
+  <div class="sub-header">
+    <button class="back-btn" onclick="goBack()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="sub-header-title notranslate">Find Seller</div>
+    <div class="credit-chip chip-orange notranslate">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      −1 Credit
+    </div>
+  </div>
+
+  <div class="pg-body">
+    <div class="pg-content">
+
+      <div class="section-card">
+        <div class="section-eyebrow">
+          <span class="eyebrow-dot dot-o"></span>
+          Search for a Seller
+        </div>
+
+        <div class="search-wrap" style="margin-bottom:14px;">
+          <input type="text" class="field-input" id="searchSeller"
+                 oninput="filterSellerDropdown()"
+                 placeholder="Enter seller or shop name…"
+                 autocomplete="off" translate="no" spellcheck="false">
+          <div id="searchDropdown" class="autocomplete-dropdown"></div>
+        </div>
+
+        <button class="btn btn-primary" onclick="searchSeller()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span class="notranslate">Search Now (−1 Credit)</span>
+        </button>
+
+        <div id="searchStatus" class="status-msg st-default" style="display:none;"></div>
+      </div>
+
+      <div id="searchResults"></div>
+
+    </div>
+  </div>
+</div><!-- /findPage -->
+
+
+<!-- ╔══════════════════════════════════════════════╗
+     ║  ENCODE SELLER PAGE                          ║
+     ╚══════════════════════════════════════════════╝ -->
+<div id="encodePage" class="page" style="display:none; transform:translateX(100%); opacity:0;">
+
+  <div class="sub-header">
+    <button class="back-btn" onclick="goBack()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="sub-header-title notranslate">Encode Seller</div>
+    <div class="credit-chip chip-green notranslate">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      +2 Credits
+    </div>
+  </div>
+
+  <div class="pg-body">
+    <div class="pg-content">
+
+      <div class="section-card">
+        <div class="section-eyebrow">
+          <span class="eyebrow-dot dot-g"></span>
+          <span class="notranslate">Encode Location (+2 Credits)</span>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span class="notranslate">Seller / Shop Name</span>
+          </div>
+          <input type="text" class="field-input focus-green" id="sellerName"
+                 placeholder="Enter seller name…"
+                 autocomplete="off" translate="no" spellcheck="false">
+        </div>
+
+        <button class="btn btn-outline-blue" onclick="getLocation()" style="margin-bottom:14px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
+          </svg>
+          <span class="notranslate">Get My Location</span>
+        </button>
+
+        <div class="coords-row">
+          <div class="field-group" style="margin-bottom:0;">
+            <div class="field-label">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 8 12 1 19 8"/>
+              </svg>
+              Latitude
+            </div>
+            <input type="text" class="field-input" id="latitude" placeholder="—" readonly>
+          </div>
+          <div class="field-group" style="margin-bottom:0;">
+            <div class="field-label">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="8 5 1 12 8 19"/>
+              </svg>
+              Longitude
+            </div>
+            <input type="text" class="field-input" id="longitude" placeholder="—" readonly>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <button class="btn btn-green-solid" onclick="saveToDatabase()">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          <span class="notranslate">Save Location (+2 Credits)</span>
+        </button>
+
+        <div id="encodeStatus" class="status-msg st-default" style="margin-top:12px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span class="notranslate">Ready to get location…</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div><!-- /encodePage -->
+
+
+<!-- ╔══════════════════════════════════════════════╗
+     ║  NOTIFICATIONS PAGE                          ║
+     ╚══════════════════════════════════════════════╝ -->
+<div id="notifPage" class="page" style="display:none; transform:translateX(100%); opacity:0;">
+
+  <div class="sub-header">
+    <button class="back-btn" onclick="goBack()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="sub-header-title notranslate">Notifications</div>
+    <button class="notif-clearall-btn notranslate" id="clearNotifBtn" onclick="clearAllNotifications()" style="display:none;">
+      Clear All
+    </button>
+  </div>
+
+  <div class="pg-body">
+    <div class="pg-content">
+      <div id="notifList"></div>
+    </div>
+  </div>
+</div><!-- /notifPage -->
+
+</div><!-- #app -->
+
+
+<!-- ════════════════════════════════════════════════
+     SUCCESS MODAL
+════════════════════════════════════════════════ -->
+<div id="successModal" class="modal">
+  <div class="modal-card">
+    <div class="modal-icon">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    </div>
+    <div class="modal-title notranslate">Location Saved!</div>
+    <div class="credit-gain-chip">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+      <span class="notranslate">+2 Credits added!</span>
+    </div>
+    <div class="modal-msg notranslate">
+      The seller location has been recorded.<br>
+      This is a big help for other SFD Riders!
+    </div>
+    <button class="btn-modal-close" onclick="closeModal()">
+      <span class="notranslate">Okay, Thanks!</span>
+    </button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     TOAST NOTIFICATIONS CONTAINER
+════════════════════════════════════════════════ -->
+<div id="notifToastWrap" class="notif-toast-wrap"></div>
+
+
+<!-- ════════════════════════════════════════════════
+     JAVASCRIPT — ALL ORIGINAL LOGIC PRESERVED
+════════════════════════════════════════════════ -->
+<script>
+
+/* ── STATE ─────────────────────────────────────── */
+let currentRiderId = "";
+let allSellersData = [];
+
+/* ════════════════════════════════════════════════
+   PAGE STACK NAVIGATION
+════════════════════════════════════════════════ */
+const EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+const DUR    = '290ms';
+
+const pageStack = ['loginPage'];
+
+/**
+ * Navigate forward — slide new page in from right.
+ */
+function goTo(pageId) {
+  const curId  = pageStack[pageStack.length - 1];
+  if (curId === pageId) return;
+
+  const curEl  = document.getElementById(curId);
+  const nextEl = document.getElementById(pageId);
+
+  /* Show target, starting off-right */
+  nextEl.style.display   = 'flex';
+  nextEl.style.transform = 'translateX(100%)';
+  nextEl.style.opacity   = '0';
+  nextEl.style.transition = 'none';
+
+  /* Force layout before animating */
+  nextEl.getBoundingClientRect();
+
+  /* Slide current out to left-dim */
+  curEl.style.transition = `transform ${DUR} ${EASING}, opacity ${DUR} ease`;
+  curEl.style.transform  = 'translateX(-22%)';
+  curEl.style.opacity    = '0.55';
+  curEl.style.pointerEvents = 'none';
+
+  /* Slide next in from right */
+  nextEl.style.transition = `transform ${DUR} ${EASING}, opacity ${DUR} ease`;
+  nextEl.style.transform  = 'translateX(0)';
+  nextEl.style.opacity    = '1';
+
+  pageStack.push(pageId);
+
+  /* Hide previous after animation */
+  setTimeout(() => {
+    curEl.style.display      = 'none';
+    curEl.style.transition   = 'none';
+    curEl.style.pointerEvents = '';
+    /* Reset so it's ready when we come back */
+    curEl.style.transform = 'translateX(-22%)';
+    curEl.style.opacity   = '0.55';
+  }, 310);
+}
+
+/**
+ * Navigate back — slide current page out to right.
+ */
+function goBack() {
+  if (pageStack.length <= 1) return;
+
+  const curId  = pageStack.pop();
+  const prevId = pageStack[pageStack.length - 1];
+
+  const curEl  = document.getElementById(curId);
+  const prevEl = document.getElementById(prevId);
+
+  /* Show previous, starting from where we left it */
+  prevEl.style.display      = 'flex';
+  prevEl.style.pointerEvents = '';
+
+  /* Force layout */
+  prevEl.getBoundingClientRect();
+
+  /* Slide current out to right */
+  curEl.style.transition = `transform ${DUR} ${EASING}, opacity ${DUR} ease`;
+  curEl.style.transform  = 'translateX(100%)';
+  curEl.style.opacity    = '0';
+  curEl.style.pointerEvents = 'none';
+
+  /* Restore previous */
+  prevEl.style.transition = `transform ${DUR} ${EASING}, opacity ${DUR} ease`;
+  prevEl.style.transform  = 'translateX(0)';
+  prevEl.style.opacity    = '1';
+
+  setTimeout(() => {
+    curEl.style.display      = 'none';
+    curEl.style.transition   = 'none';
+    curEl.style.pointerEvents = '';
+    /* Reset for next time it's pushed */
+    curEl.style.transform = 'translateX(100%)';
+    curEl.style.opacity   = '0';
+    prevEl.style.transition = 'none';
+  }, 310);
+}
+
+/**
+ * Special login → home transition (fade + slide up).
+ */
+function showHome() {
+  const loginEl = document.getElementById('loginPage');
+  const homeEl  = document.getElementById('homePage');
+
+  /* Animate login out */
+  loginEl.style.transition = `opacity 0.32s ease, transform 0.32s ease`;
+  loginEl.style.opacity    = '0';
+  loginEl.style.transform  = 'scale(0.96) translateY(-12px)';
+  loginEl.style.pointerEvents = 'none';
+
+  /* Show home rising up */
+  homeEl.style.display    = 'flex';
+  homeEl.style.opacity    = '0';
+  homeEl.style.transform  = 'translateY(28px)';
+
+  homeEl.getBoundingClientRect();
+
+  homeEl.style.transition = `opacity 0.34s ease 0.14s, transform 0.34s ease 0.14s`;
+  homeEl.style.opacity    = '1';
+  homeEl.style.transform  = 'translateY(0)';
+
+  pageStack.splice(0, pageStack.length, 'homePage');
+
+  setTimeout(() => {
+    loginEl.style.display = 'none';
+    loginEl.style.transition = 'none';
+    homeEl.style.transition  = 'none';
+  }, 520);
+}
+
+/* Placeholder for hamburger menu */
+function openMenu() {
+  console.log('[SFD] Hamburger menu tapped');
+}
+
+/* ════════════════════════════════════════════════
+   GREETING
+════════════════════════════════════════════════ */
+function setGreeting() {
+  const h  = new Date().getHours();
+  const el = document.getElementById('homeGreeting');
+  if (!el) return;
+  if (h < 12)      el.textContent = 'Good morning,';
+  else if (h < 17) el.textContent = 'Good afternoon,';
+  else             el.textContent = 'Good evening,';
+}
+
+/* ════════════════════════════════════════════════
+   SHARED HELPERS
+════════════════════════════════════════════════ */
+function setStatus(elId, msg, type) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.style.display = 'flex';
+
+  const cls = {
+    success: 'st-success', error: 'st-error',
+    warning: 'st-warning', loading: 'st-loading',
+    '': 'st-default'
+  };
+  el.className = `status-msg ${cls[type] || 'st-default'}`;
+
+  const icons = {
+    success: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>`,
+    error:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+    warning: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    loading: `<div class="dot-loader"><span></span><span></span><span></span></div>`,
+    '':      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
+  };
+
+  el.innerHTML = (icons[type] || icons['']) + `<span class="notranslate">${msg}</span>`;
+}
+
+function updateCreditUI(credits) {
+  const numEl   = document.getElementById('creditNum');
+  const badgeEl = document.getElementById('creditsBadge');
+  if (numEl)   numEl.textContent = credits;
+  if (badgeEl) badgeEl.className = 'credits-badge' + (credits <= 0 ? ' low' : '');
+}
+
+function getDistanceKm(lat1, lon1, lat2, lon2) {
+  const R    = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a    = Math.sin(dLat/2)**2
+             + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180)
+             * Math.sin(dLon/2)**2;
+  return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(2);
+}
+
+/* ════════════════════════════════════════════════
+   LOAD SELLER NAMES (autocomplete pool)
+════════════════════════════════════════════════ */
+async function loadSellerNames() {
+  try {
+    const res = await fetch('/api/all-seller-names');
+    if (res.ok) allSellersData = await res.json();
+  } catch(e) { /* silent */ }
+}
+
+loadSellerNames();
+
+/* ════════════════════════════════════════════════
+   LOGIN
+════════════════════════════════════════════════ */
+async function loginRider() {
+  const riderId   = document.getElementById('riderIdInput').value.trim();
+  const riderName = document.getElementById('riderNameInput').value.trim();
+
+  if (!riderId) {
+    setStatus('loginStatus', 'Please enter your Rider ID.', 'warning');
+    return;
+  }
+
+  setStatus('loginStatus', 'Connecting to server…', 'loading');
+
+  try {
+    const res  = await fetch('/api/rider-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ riderId, riderName })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      currentRiderId = data.rider_id;
+      document.getElementById('lblRiderName').textContent = data.name;
+      updateCreditUI(data.credits);
+      setGreeting();
+      showHome();
+
+      /* Catch up on any "new seller" alerts missed while offline */
+      syncNotificationsFromServer();
+    } else {
+      setStatus('loginStatus', data.error || 'Server error. Please try again.', 'error');
+    }
+  } catch(e) {
+    setStatus('loginStatus', 'Cannot connect to server. Please try again.', 'error');
+  }
+}
+
+/* ════════════════════════════════════════════════
+   GPS — GET LOCATION
+════════════════════════════════════════════════ */
+function getLocation() {
+  if (!navigator.geolocation) {
+    setStatus('encodeStatus', 'GPS is not available on this device.', 'error');
+    return;
+  }
+  setStatus('encodeStatus', 'Getting your location…', 'loading');
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      document.getElementById('latitude').value  = pos.coords.latitude.toFixed(7);
+      document.getElementById('longitude').value = pos.coords.longitude.toFixed(7);
+      setStatus('encodeStatus', 'Location acquired! Ready to save.', 'success');
+    },
+    () => {
+      setStatus('encodeStatus', 'Could not get location. Please allow GPS access.', 'error');
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+  );
+}
+
+/* ════════════════════════════════════════════════
+   SAVE LOCATION TO DATABASE
+════════════════════════════════════════════════ */
+async function saveToDatabase() {
+  const seller = document.getElementById('sellerName').value.trim();
+  const lat    = document.getElementById('latitude').value;
+  const lng    = document.getElementById('longitude').value;
+
+  if (!seller)  { setStatus('encodeStatus', 'Please enter the seller name first.', 'warning'); return; }
+  if (!lat || !lng) { setStatus('encodeStatus', 'Please get your location first.', 'warning'); return; }
+
+  setStatus('encodeStatus', 'Saving to database…', 'loading');
+
+  try {
+    const res  = await fetch('/api/save-location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seller, lat, lng, riderId: currentRiderId })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById('successModal').classList.add('show');
+      setStatus('encodeStatus', 'Saved! Ready to encode another.', 'success');
+      updateCreditUI(data.totalCredits);
+
+      /* The server creates + broadcasts the notification to all riders;
+         use that exact object so this device's copy matches everyone
+         else's (dedup-safe). Fall back to a local one for older backends. */
+      if (data.notification) {
+        handleIncomingNotification(data.notification);
+      } else {
+        addNotification(seller);
+      }
+
+      document.getElementById('sellerName').value  = '';
+      document.getElementById('latitude').value    = '';
+      document.getElementById('longitude').value   = '';
+
+      loadSellerNames();
+    } else {
+      setStatus('encodeStatus', data.error || 'Error saving. Please try again.', 'error');
+    }
+  } catch(e) {
+    setStatus('encodeStatus', 'Connection error. Please try again.', 'error');
+  }
+}
+
+function closeModal() {
+  document.getElementById('successModal').classList.remove('show');
+}
+
+/* ════════════════════════════════════════════════
+   AUTOCOMPLETE DROPDOWN
+════════════════════════════════════════════════ */
+function filterSellerDropdown() {
+  const input    = document.getElementById('searchSeller').value.toLowerCase();
+  const dropdown = document.getElementById('searchDropdown');
+  dropdown.innerHTML = '';
+
+  if (!input.trim()) { dropdown.style.display = 'none'; return; }
+
+  const matches = allSellersData.filter(s =>
+    s.seller_name.toLowerCase().includes(input)
+  );
+
+  if (matches.length > 0) {
+    dropdown.style.display = 'block';
+    matches.slice(0, 8).forEach(seller => {
+      const item = document.createElement('div');
+      item.className = 'dropdown-item';
+      item.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span class="notranslate">${seller.seller_name}</span>
+      `;
+      item.onclick = () => {
+        document.getElementById('searchSeller').value = seller.seller_name;
+        dropdown.style.display = 'none';
+      };
+      dropdown.appendChild(item);
+    });
+  } else {
+    dropdown.style.display = 'none';
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const wrapper = document.querySelector('.search-wrap');
+  if (wrapper && !wrapper.contains(e.target)) {
+    const dd = document.getElementById('searchDropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
+
+/* ════════════════════════════════════════════════
+   SEARCH SELLER
+════════════════════════════════════════════════ */
+function searchSeller() {
+  const searchName       = document.getElementById('searchSeller').value.trim();
+  const resultsContainer = document.getElementById('searchResults');
+
+  resultsContainer.innerHTML = '';
+  document.getElementById('searchStatus').style.display = 'none';
+
+  if (!searchName) {
+    setStatus('searchStatus', 'Please enter a seller name first.', 'warning');
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    setStatus('searchStatus', 'GPS not available. Required to calculate distance.', 'error');
+    return;
+  }
+
+  setStatus('searchStatus', 'Getting your location…', 'loading');
+
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    const riderLat = position.coords.latitude;
+    const riderLng = position.coords.longitude;
+
+    setStatus('searchStatus', 'Searching for seller…', 'loading');
+
+    try {
+      const res  = await fetch(
+        `/api/search-seller?name=${encodeURIComponent(searchName)}&riderId=${encodeURIComponent(currentRiderId)}`
+      );
+      const data = await res.json();
+
+      if (!res.ok) {
+        setStatus('searchStatus', data.error || 'Error during search. Please try again.', 'error');
+        return;
+      }
+
+      updateCreditUI(data.remainingCredits);
+
+      if (!data.sellers || data.sellers.length === 0) {
+        setStatus('searchStatus', `No seller found matching "${searchName}".`, 'error');
+        resultsContainer.innerHTML = `
+          <div class="empty-state">
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <p class="notranslate">No results — try a different name</p>
+          </div>
+        `;
+        return;
+      }
+
+      setStatus('searchStatus', `${data.sellers.length} seller(s) found!`, 'success');
+
+      data.sellers.forEach((item, index) => {
+        const distance = getDistanceKm(riderLat, riderLng, item.latitude, item.longitude);
+        const mapId    = `map-${index}`;
+        const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`;
+
+        const div = document.createElement('div');
+        div.className = 'result-card';
+        div.innerHTML = `
+          <div class="result-header">
+            <div class="result-name notranslate">${item.seller_name}</div>
+            <div class="distance-badge notranslate">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
+              </svg>
+              ${distance} km
+            </div>
+          </div>
+          <div id="${mapId}" class="map-preview"></div>
+          <a href="${gmapsUrl}" target="_blank" class="btn btn-maps" style="text-decoration:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+            </svg>
+            <span class="notranslate">Navigate in Google Maps</span>
+          </a>
+        `;
+        resultsContainer.appendChild(div);
+
+        setTimeout(() => {
+          const map = L.map(mapId, { zoomControl: false });
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+          }).addTo(map);
+
+          const riderIcon = L.divIcon({
+            html: `<div style="background:#2563EB;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 8px rgba(37,99,235,0.75);"></div>`,
+            iconSize: [12,12], iconAnchor: [6,6], className: ''
+          });
+          const sellerIcon = L.divIcon({
+            html: `<div style="background:#FF6621;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 8px rgba(255,102,33,0.75);"></div>`,
+            iconSize: [14,14], iconAnchor: [7,7], className: ''
+          });
+
+          const rm = L.marker([riderLat, riderLng], { icon: riderIcon }).addTo(map).bindPopup("<span class='notranslate'>You</span>");
+          const sm = L.marker([item.latitude, item.longitude], { icon: sellerIcon }).addTo(map).bindPopup(`<span class='notranslate'>${item.seller_name}</span>`);
+
+          const group = L.featureGroup([rm, sm]);
+          map.fitBounds(group.getBounds(), { padding: [22, 22] });
+        }, 260);
+      });
+
+    } catch(err) {
+      setStatus('searchStatus', 'Connection error. Please try again.', 'error');
+    }
+
+  }, () => {
+    setStatus('searchStatus', 'GPS access required. Please allow location access.', 'error');
+  }, { enableHighAccuracy: true, timeout: 12000 });
+}
+
+/* ════════════════════════════════════════════════
+   NOTIFICATIONS
+   ────────────────────────────────────────────────
+   Source of truth: the server.
+   - /api/save-location creates the "New Seller Location
+     Added" notification, persists it to Supabase, and
+     broadcasts it to every connected rider over
+     /ws/notifications in real time.
+   - On login, syncNotificationsFromServer() pulls recent
+     notifications from /api/notifications so a fresh
+     device/browser catches up on anything missed.
+
+   Locally, notifications (and each device's own read/unread
+   state) are cached in localStorage so the list still works
+   offline and survives refreshes / re-opening the app.
+   Same-browser tabs also sync instantly via the `storage` event.
+════════════════════════════════════════════════ */
+const NOTIF_STORAGE_KEY = 'sfd_notifications_v1';
+
+let notifications = loadNotifications();
+let notifSocket   = null;
+
+function loadNotifications() {
+  try {
+    const raw = localStorage.getItem(NOTIF_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function saveNotifications() {
+  try { localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(notifications)); } catch(e) {}
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatNotifTime(iso) {
+  const date    = new Date(iso);
+  const diffMin = Math.floor((Date.now() - date.getTime()) / 60000);
+
+  if (diffMin < 1)  return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+
+  return date.toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit'
+  });
+}
+
+function notifIconSvg() {
+  return `
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  `;
+}
+
+/**
+ * Core entry point for any notification — whether it was just
+ * confirmed by /api/save-location, arrived via the real-time
+ * WebSocket, or was pulled in by syncNotificationsFromServer().
+ * Dedupes by id, persists, updates the badge, and shows a toast.
+ */
+function handleIncomingNotification(n, opts = {}) {
+  if (notifications.some(x => x.id === n.id)) return null;
+
+  const entry = { ...n, read: false };
+  notifications.unshift(entry);
+  saveNotifications();
+  updateNotifBadge();
+
+  if (!opts.silent) showToast(entry);
+
+  if (pageStack[pageStack.length - 1] === 'notifPage') {
+    renderNotificationsList();
+    scheduleMarkAllRead();
+  }
+
+  return entry;
+}
+
+/**
+ * Fallback: build a "New Seller Location Added" notification entirely
+ * client-side. Used only if the server response from /api/save-location
+ * doesn't include a `notification` object (e.g. older backend).
+ */
+function addNotification(sellerName) {
+  const n = {
+    id: 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    title: 'New Seller Location Added',
+    message: `${sellerName} has been added to the database.`,
+    seller: sellerName,
+    timestamp: new Date().toISOString()
+  };
+  return handleIncomingNotification(n);
+}
+
+function updateNotifBadge() {
+  const badge = document.getElementById('notifBadge');
+  if (!badge) return;
+
+  const count = notifications.filter(n => !n.read).length;
+
+  if (count > 0) {
+    badge.style.display = 'flex';
+    badge.textContent   = count > 9 ? '9+' : String(count);
+    badge.classList.remove('pulse');
+    requestAnimationFrame(() => requestAnimationFrame(() => badge.classList.add('pulse')));
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function renderNotificationsList() {
+  const container = document.getElementById('notifList');
+  const clearBtn  = document.getElementById('clearNotifBtn');
+  if (!container) return;
+
+  if (notifications.length === 0) {
+    clearBtn.style.display = 'none';
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <p class="notranslate">No notifications yet</p>
+        <p class="empty-sub notranslate">New seller updates will appear here</p>
+      </div>
+    `;
+    return;
+  }
+
+  clearBtn.style.display = '';
+
+  container.innerHTML = notifications.map((n, i) => `
+    <div class="notif-item ${!n.read ? 'unread' : ''}" data-id="${n.id}" style="animation-delay:${Math.min(i * 40, 320)}ms">
+      <div class="notif-icon">${notifIconSvg()}</div>
+      <div class="notif-content">
+        <div class="notif-title-row">
+          <span class="notif-title notranslate">${escapeHtml(n.title)}</span>
+          ${!n.read ? '<span class="notif-unread-dot"></span>' : ''}
+        </div>
+        <div class="notif-message notranslate">${escapeHtml(n.message)}</div>
+        <div class="notif-time notranslate">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          ${formatNotifTime(n.timestamp)}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/**
+ * Open the notifications page, render the list, then mark
+ * everything as read after a short delay so the unread
+ * styling is visible for a moment before it fades.
+ */
+function openNotifications() {
+  renderNotificationsList();
+  goTo('notifPage');
+  scheduleMarkAllRead();
+}
+
+let markReadTimer = null;
+function scheduleMarkAllRead() {
+  clearTimeout(markReadTimer);
+  markReadTimer = setTimeout(markAllNotificationsRead, 900);
+}
+
+function markAllNotificationsRead() {
+  let changed = false;
+  notifications.forEach(n => { if (!n.read) { n.read = true; changed = true; } });
+  if (!changed) return;
+
+  saveNotifications();
+  updateNotifBadge();
+
+  document.querySelectorAll('#notifList .notif-item.unread').forEach(el => {
+    const dot = el.querySelector('.notif-unread-dot');
+    if (dot) { dot.style.opacity = '0'; dot.style.transform = 'scale(0)'; }
+    el.classList.remove('unread');
+  });
+}
+
+function clearAllNotifications() {
+  notifications = [];
+  saveNotifications();
+  updateNotifBadge();
+  renderNotificationsList();
+}
+
+/**
+ * Show a transient toast for a new notification, sliding down
+ * from the top of the screen. Tapping it opens the notifications page.
+ */
+function showToast(n) {
+  const wrap = document.getElementById('notifToastWrap');
+  if (!wrap) return;
+
+  const el = document.createElement('div');
+  el.className = 'notif-toast';
+  el.innerHTML = `
+    <div class="notif-toast-icon">${notifIconSvg()}</div>
+    <div style="flex:1; min-width:0;">
+      <div class="notif-toast-title notranslate">${escapeHtml(n.title)}</div>
+      <div class="notif-toast-msg notranslate">${escapeHtml(n.message)}</div>
+    </div>
+  `;
+  el.onclick = () => { el.remove(); openNotifications(); };
+
+  wrap.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 400);
+  }, 4500);
+}
+
+/**
+ * Catch up on recent notifications from the server — used right
+ * after login so a fresh device/browser sees recent "new seller"
+ * alerts it missed while offline. New ones after this arrive live
+ * via the /ws/notifications WebSocket below.
+ */
+async function syncNotificationsFromServer() {
+  try {
+    const res = await fetch('/api/notifications?limit=50');
+    if (!res.ok) return;
+
+    const serverList = await res.json();
+    if (!Array.isArray(serverList) || serverList.length === 0) return;
+
+    let changed = false;
+    serverList.forEach(n => {
+      if (handleIncomingNotification(n, { silent: true })) changed = true;
+    });
+
+    if (changed) {
+      notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      saveNotifications();
+      updateNotifBadge();
+      if (pageStack[pageStack.length - 1] === 'notifPage') renderNotificationsList();
+    }
+  } catch(e) { /* offline or endpoint unavailable — local data still applies */ }
+}
+
+/**
+ * Best-effort: open a WebSocket so notifications created by other
+ * riders appear here in real time. Safe no-op if unsupported or
+ * the endpoint doesn't exist on the server yet.
+ */
+function initNotificationSocket() {
+  if (typeof WebSocket === 'undefined') return;
+
+  try {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    notifSocket = new WebSocket(`${proto}://${location.host}/ws/notifications`);
+
+    notifSocket.addEventListener('message', (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'new_notification' && msg.notification) {
+          handleIncomingNotification(msg.notification);
+        }
+      } catch(e) { /* ignore malformed messages */ }
+    });
+
+    notifSocket.addEventListener('error', () => { /* backend WS not available — ignore */ });
+  } catch(e) { /* WebSocket unavailable — ignore */ }
+}
+
+/* Cross-tab sync: instantly reflect notifications created in another
+   tab/window of the same browser (e.g. another rider on a shared device). */
+window.addEventListener('storage', (e) => {
+  if (e.key !== NOTIF_STORAGE_KEY) return;
+  notifications = loadNotifications();
+  updateNotifBadge();
+  if (pageStack[pageStack.length - 1] === 'notifPage') {
+    renderNotificationsList();
+    scheduleMarkAllRead();
+  }
+});
+
+/* ════════════════════════════════════════════════
+   DOM READY
+════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  setGreeting();
+
+  /* Enter key on login */
+  ['riderIdInput', 'riderNameInput'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') loginRider(); });
+  });
+
+  /* Enter key on search */
+  const si = document.getElementById('searchSeller');
+  if (si) si.addEventListener('keydown', e => { if (e.key === 'Enter') searchSeller(); });
+
+  /* Notifications: restore badge from persisted notifications, and
+     attempt real-time sync with other connected riders */
+  updateNotifBadge();
+  initNotificationSocket();
+});
+
+</script>
+</body>
+</html>

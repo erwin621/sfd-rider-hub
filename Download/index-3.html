@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="google" content="notranslate">
+    <title>SFD Rider Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* ══════════════════════════════════════
+           DESIGN TOKENS
+        ══════════════════════════════════════ */
+        :root {
+            --orange:        #FF6B00;
+            --orange-light:  #FFF3EB;
+            --orange-mid:    #FFD9B8;
+            --orange-dim:    rgba(255,107,0,0.12);
+            --orange-border: rgba(255,107,0,0.22);
+            --green:         #00B56A;
+            --green-light:   #EDFFF5;
+            --green-mid:     #B8F0D4;
+            --green-dim:     rgba(0,181,106,0.12);
+            --green-border:  rgba(0,181,106,0.22);
+            --blue:          #3B82F6;
+            --blue-dim:      rgba(59,130,246,0.12);
+            --red:           #EF4444;
+            --red-dim:       rgba(239,68,68,0.10);
+            --bg:            #F4F6FB;
+            --surface:       #FFFFFF;
+            --surface2:      #F0F2F8;
+            --border:        #E2E8F0;
+            --border-strong: #CBD5E1;
+            --text:          #0F172A;
+            --text-sub:      #64748B;
+            --text-muted:    #94A3B8;
+            --shadow-xs:     0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+            --shadow-sm:     0 4px 12px rgba(15,23,42,0.06);
+            --shadow-md:     0 8px 30px rgba(15,23,42,0.08);
+            --shadow-lg:     0 16px 48px rgba(15,23,42,0.10);
+            --r-sm:  12px;
+            --r-md:  18px;
+            --r-lg:  24px;
+            --r-xl:  32px;
+        }
+
+        /* ══════════════════════════════════════
+           RESET & BASE
+        ══════════════════════════════════════ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ══════════════════════════════════════
+           SCREEN SYSTEM
+        ══════════════════════════════════════ */
+        .screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: var(--bg);
+            will-change: transform, opacity;
+            -webkit-overflow-scrolling: touch;
+            display: none;
+        }
+        .screen.active { display: block; }
+        .screen::-webkit-scrollbar { width: 0; }
+
+        /* ══════════════════════════════════════
+           TYPOGRAPHY
+        ══════════════════════════════════════ */
+        .syne { font-family: 'Syne', sans-serif; }
+
+        /* ══════════════════════════════════════
+           SHARED FORM ELEMENTS
+        ══════════════════════════════════════ */
+        .form-group { margin-bottom: 16px; }
+
+        .form-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--surface);
+            border: 1.5px solid var(--border-strong);
+            border-radius: var(--r-sm);
+            color: var(--text);
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            outline: none;
+            box-shadow: 0 2px 6px rgba(15,23,42,0.05), inset 0 1px 3px rgba(15,23,42,0.03);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input::placeholder { color: var(--text-muted); }
+
+        .form-input:focus {
+            border-color: var(--orange);
+            box-shadow: 0 0 0 3px var(--orange-dim), 0 2px 6px rgba(15,23,42,0.05);
+        }
+
+        .form-input.green-focus:focus {
+            border-color: var(--green);
+            box-shadow: 0 0 0 3px var(--green-dim), 0 2px 6px rgba(15,23,42,0.05);
+        }
+
+        .form-input:read-only {
+            background: var(--surface2);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .coords-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        /* ══════════════════════════════════════
+           SHARED BUTTONS
+        ══════════════════════════════════════ */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 15px 20px;
+            border: none;
+            border-radius: var(--r-sm);
+            font-size: 0.88rem;
+            font-weight: 700;
+            font-family: 'DM Sans', sans-serif;
+            cursor: pointer;
+            text-decoration: none;
+            letter-spacing: 0.3px;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+            user-select: none;
+        }
+
+        .btn:active { transform: scale(0.97); }
+
+        .btn-orange {
+            background: var(--orange);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(255,107,0,0.32);
+        }
+        .btn-orange:hover { background: #e85f00; box-shadow: 0 6px 22px rgba(255,107,0,0.42); transform: translateY(-1px); }
+
+        .btn-green {
+            background: var(--green);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(0,181,106,0.32);
+        }
+        .btn-green:hover { background: #009d5c; box-shadow: 0 6px 22px rgba(0,181,106,0.42); transform: translateY(-1px); }
+
+        .btn-outline {
+            background: var(--surface);
+            color: var(--text-sub);
+            border: 1.5px solid var(--border-strong);
+            box-shadow: var(--shadow-xs);
+        }
+        .btn-outline:hover { background: var(--surface2); }
+
+        .btn-blue-ghost {
+            background: var(--blue-dim);
+            color: var(--blue);
+            border: 1.5px solid rgba(59,130,246,0.22);
+        }
+        .btn-blue-ghost:hover { background: rgba(59,130,246,0.18); }
+
+        /* ══════════════════════════════════════
+           STATUS MESSAGES
+        ══════════════════════════════════════ */
+        .status-msg {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.84rem;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: var(--surface2);
+            color: var(--text-sub);
+            border: 1px solid var(--border);
+        }
+
+        .status-msg.success { background: var(--green-light); color: #065f46; border-color: var(--green-border); }
+        .status-msg.error   { background: var(--red-dim); color: #991b1b; border-color: rgba(239,68,68,0.22); }
+        .status-msg.warning { background: var(--orange-light); color: #92400e; border-color: var(--orange-border); }
+        .status-msg.loading { background: var(--blue-dim); color: #1e40af; border-color: rgba(59,130,246,0.22); }
+
+        .dot-loader { display: inline-flex; gap: 4px; align-items: center; flex-shrink: 0; }
+        .dot-loader span {
+            width: 5px; height: 5px; background: currentColor;
+            border-radius: 50%; animation: dotPulse 1.2s infinite;
+        }
+        .dot-loader span:nth-child(2) { animation-delay: 0.2s; }
+        .dot-loader span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dotPulse {
+            0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+            40%            { opacity: 1;   transform: scale(1);   }
+        }
+
+        /* ══════════════════════════════════════
+           LOGIN SCREEN
+        ══════════════════════════════════════ */
+        #screen-login {
+            /* flex centering is handled by the inner .login-center wrapper */
+            background: var(--bg);
+        }
+
+        .login-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100%;
+            width: 100%;
+            padding: 32px 24px;
+        }
+
+        .login-wrap { width: 100%; max-width: 420px; }
+
+        .login-logo {
+            width: 76px; height: 76px;
+            background: linear-gradient(135deg, #FF6B00 0%, #FF9A3C 100%);
+            border-radius: 24px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 18px;
+            box-shadow: 0 8px 28px rgba(255,107,0,0.3);
+        }
+
+        .login-brand h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.65rem; font-weight: 800;
+            color: var(--text); letter-spacing: -0.5px;
+        }
+        .login-brand h1 span { color: var(--orange); }
+        .login-brand p { color: var(--text-sub); font-size: 0.9rem; margin-top: 5px; }
+
+        .login-card {
+            background: var(--surface);
+            border-radius: var(--r-lg);
+            padding: 28px 24px 24px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+        }
+
+        .btn-login-main {
+            background: linear-gradient(135deg, #FF6B00, #FF8C38);
+            color: #fff;
+            font-family: 'Syne', sans-serif;
+            font-size: 0.95rem; font-weight: 800;
+            letter-spacing: 1px;
+            padding: 16px;
+            border-radius: var(--r-sm);
+            border: none;
+            width: 100%;
+            box-shadow: 0 6px 20px rgba(255,107,0,0.32);
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            margin-top: 6px;
+        }
+        .btn-login-main:hover { background: linear-gradient(135deg, #e85f00, #e07a28); transform: translateY(-1px); }
+        .btn-login-main:active { transform: scale(0.97); }
+
+        .login-security {
+            display: flex; align-items: center; justify-content: center;
+            gap: 6px; margin-top: 16px;
+            color: var(--text-muted); font-size: 0.78rem;
+        }
+
+        /* ══════════════════════════════════════
+           HOME SCREEN
+        ══════════════════════════════════════ */
+        #screen-home { background: var(--bg); }
+
+        /* ── Header ── */
+        .home-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .hdr-icon-btn {
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            border: none; background: transparent; cursor: pointer;
+            border-radius: 10px; color: var(--text-sub);
+            transition: background 0.15s;
+        }
+        .hdr-icon-btn:hover { background: var(--surface2); }
+
+        .hdr-brand {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.05rem; font-weight: 800; color: var(--text);
+        }
+        .hdr-brand span { color: var(--orange); }
+
+        .hdr-notif { position: relative; }
+        .hdr-notif-dot {
+            position: absolute; top: 7px; right: 7px;
+            width: 8px; height: 8px;
+            background: var(--orange); border-radius: 50%;
+            border: 2px solid var(--surface);
+        }
+
+        /* ── User card ── */
+        .home-body { padding: 20px 20px 0; }
+
+        .user-card {
+            background: var(--surface);
+            border-radius: var(--r-md);
+            padding: 18px 20px;
+            display: flex; align-items: center;
+            justify-content: space-between; gap: 12px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            animation: fadeUp 0.35s ease forwards;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+
+        .user-avatar {
+            width: 52px; height: 52px; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--orange-light), var(--orange-mid));
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .user-avatar svg { color: var(--orange); }
+
+        .user-greeting { font-size: 0.78rem; color: var(--text-muted); }
+        .user-name {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.05rem; font-weight: 700; color: var(--text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .credits-badge {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--orange-light);
+            border: 1px solid var(--orange-border);
+            border-radius: 50px;
+            padding: 8px 14px 8px 8px;
+            flex-shrink: 0; cursor: default;
+        }
+
+        .credits-badge.low {
+            background: var(--red-dim);
+            border-color: rgba(239,68,68,0.22);
+        }
+        .credits-badge.low .credits-icon-wrap { background: var(--red); }
+        .credits-badge.low .credits-num { color: var(--red); }
+
+        .credits-icon-wrap {
+            width: 32px; height: 32px;
+            background: var(--orange);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .credits-text { display: flex; flex-direction: column; line-height: 1.2; }
+        .credits-label-sm { font-size: 0.68rem; color: var(--text-sub); }
+        .credits-num {
+            font-family: 'Syne', sans-serif;
+            font-size: 0.95rem; font-weight: 800; color: var(--orange);
+        }
+
+        /* ── Hero banner ── */
+        .hero-wrap {
+            margin: 16px 20px;
+            height: 148px;
+            background: linear-gradient(135deg, #FFF0E6 0%, #FFE4CC 100%);
+            border-radius: var(--r-md);
+            overflow: hidden;
+            position: relative;
+            border: 1px solid var(--orange-border);
+        }
+
+        .hero-city {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            width: 100%; height: 100%;
+        }
+
+        .hero-pin {
+            position: absolute;
+            top: 16px; left: 50%;
+            transform: translateX(-50%);
+            color: var(--orange);
+            filter: drop-shadow(0 4px 8px rgba(255,107,0,0.35));
+            animation: pinBob 2.2s ease-in-out infinite;
+            z-index: 2;
+        }
+
+        @keyframes pinBob {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50%       { transform: translateX(-50%) translateY(-7px); }
+        }
+
+        /* ── Action cards ── */
+        .home-cards {
+            padding: 0 20px 100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        .action-card {
+            background: var(--surface);
+            border-radius: var(--r-lg);
+            padding: 24px 20px 20px;
+            position: relative; overflow: hidden;
+            box-shadow: 0 8px 30px rgba(15,23,42,0.07);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            user-select: none;
+        }
+
+        .action-card:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(15,23,42,0.11); }
+        .action-card:active { transform: scale(0.98); }
+
+        /* Left accent line */
+        .action-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+            border-radius: 24px 0 0 24px;
+        }
+        .action-card.ac-orange::before { background: var(--orange); }
+        .action-card.ac-green::before  { background: var(--green); }
+
+        /* Watermark */
+        .card-wm {
+            position: absolute;
+            right: -8px; bottom: -10px;
+            pointer-events: none;
+        }
+        .ac-orange .card-wm { color: var(--orange); opacity: 0.07; }
+        .ac-green  .card-wm { color: var(--green);  opacity: 0.07; }
+
+        .card-icon {
+            width: 54px; height: 54px;
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 16px;
+        }
+        .ac-orange .card-icon { background: var(--orange-light); }
+        .ac-green  .card-icon { background: var(--green-light); }
+        .ac-orange .card-icon svg { color: var(--orange); }
+        .ac-green  .card-icon svg { color: var(--green); }
+
+        .card-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.3rem; font-weight: 800;
+            color: var(--text); margin-bottom: 5px;
+        }
+
+        .card-desc { font-size: 0.87rem; color: var(--text-sub); line-height: 1.5; }
+
+        .card-arrow {
+            position: absolute; right: 20px; bottom: 20px;
+            width: 36px; height: 36px;
+            border: 1.5px solid var(--border-strong);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+        .ac-orange:hover .card-arrow { border-color: var(--orange); color: var(--orange); background: var(--orange-light); }
+        .ac-green:hover  .card-arrow { border-color: var(--green);  color: var(--green);  background: var(--green-light); }
+
+        /* card stagger */
+        .card-delay-1 { animation: fadeUp 0.35s 0.1s ease both; }
+        .card-delay-2 { animation: fadeUp 0.35s 0.2s ease both; }
+
+        /* ══════════════════════════════════════
+           SUBPAGE SCREENS
+        ══════════════════════════════════════ */
+        .sub-header {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .back-btn {
+            width: 38px; height: 38px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border-strong); background: var(--surface2);
+            border-radius: 10px; cursor: pointer; color: var(--text);
+            transition: background 0.15s, transform 0.12s;
+        }
+        .back-btn:hover  { background: var(--border); }
+        .back-btn:active { transform: scale(0.9); }
+
+        .sub-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.1rem; font-weight: 800; color: var(--text);
+        }
+        .accent-orange { color: var(--orange); }
+        .accent-green  { color: var(--green); }
+
+        /* Colored top bar on subpages */
+        .sub-topbar {
+            height: 4px;
+            background: var(--orange);
+        }
+        .sub-topbar.green { background: var(--green); }
+
+        .sub-body { padding: 20px 20px 100px; }
+
+        /* Section label */
+        .sec-label {
+            font-size: 0.7rem; font-weight: 700;
+            color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 0.8px; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .sec-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+        /* Content card */
+        .c-card {
+            background: var(--surface);
+            border-radius: var(--r-md);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            margin-bottom: 14px;
+        }
+
+        .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+        /* ══════════════════════════════════════
+           AUTOCOMPLETE
+        ══════════════════════════════════════ */
+        .search-wrap { position: relative; }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: calc(100% + 4px); left: 0; right: 0;
+            background: var(--surface);
+            border: 1.5px solid var(--border-strong);
+            border-radius: var(--r-sm);
+            max-height: 220px; overflow-y: auto;
+            z-index: 999; display: none;
+            box-shadow: var(--shadow-md);
+        }
+
+        .dropdown-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 14px; color: var(--text); cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem; transition: background 0.12s;
+        }
+        .dropdown-item:last-child { border-bottom: none; }
+        .dropdown-item:hover { background: var(--surface2); color: var(--orange); }
+        .dropdown-item svg { color: var(--text-muted); flex-shrink: 0; }
+
+        /* ══════════════════════════════════════
+           SEARCH RESULTS
+        ══════════════════════════════════════ */
+        .result-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            padding: 16px; margin-top: 12px;
+            box-shadow: var(--shadow-sm);
+            animation: fadeUp 0.28s ease forwards;
+        }
+
+        .result-header {
+            display: flex; align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 10px; gap: 10px;
+        }
+
+        .result-name {
+            font-family: 'Syne', sans-serif;
+            font-size: 1rem; font-weight: 700; color: var(--text);
+        }
+
+        .dist-badge {
+            display: flex; align-items: center; gap: 5px;
+            background: var(--orange-light); color: var(--orange);
+            border: 1px solid var(--orange-border);
+            padding: 4px 10px; border-radius: 50px;
+            font-size: 0.78rem; font-weight: 700;
+            white-space: nowrap; flex-shrink: 0;
+        }
+
+        .map-preview {
+            height: 170px; width: 100%;
+            border-radius: 10px; margin-top: 10px;
+            border: 1px solid var(--border); overflow: hidden;
+        }
+
+        .route-info-bar {
+            display: none; align-items: center; justify-content: space-around;
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 10px; padding: 10px 14px; margin-top: 8px; gap: 10px;
+        }
+
+        .route-stat {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.82rem; font-weight: 600; color: var(--text-sub);
+        }
+        .route-stat svg { color: var(--orange); flex-shrink: 0; }
+        .route-stat span { color: var(--text); }
+
+        .route-loading {
+            display: flex; align-items: center; gap: 7px;
+            font-size: 0.8rem; color: var(--text-muted); padding: 8px 0 2px;
+        }
+
+        .btn-navigate {
+            background: var(--surface2); color: var(--text);
+            border: 1.5px solid var(--border-strong);
+            margin-top: 10px; margin-bottom: 0;
+            box-shadow: var(--shadow-xs);
+        }
+        .btn-navigate:hover { border-color: var(--orange); color: var(--orange); }
+
+        .empty-state {
+            text-align: center; padding: 32px 20px; color: var(--text-muted);
+        }
+        .empty-state svg { margin: 0 auto 12px; display: block; opacity: 0.3; }
+        .empty-state p { font-size: 0.9rem; }
+
+        /* ══════════════════════════════════════
+           SUCCESS MODAL
+        ══════════════════════════════════════ */
+        .modal {
+            display: none;
+            position: fixed; z-index: 2000; inset: 0;
+            background: rgba(15,23,42,0.55);
+            backdrop-filter: blur(4px);
+            align-items: flex-end; justify-content: center;
+            padding: 0 0 0;
+        }
+        .modal.show { display: flex; }
+
+        .modal-card {
+            background: var(--surface);
+            border-radius: var(--r-xl) var(--r-xl) 0 0;
+            padding: 36px 28px calc(28px + env(safe-area-inset-bottom, 0px));
+            text-align: center; width: 100%; max-width: 480px;
+            box-shadow: 0 -8px 40px rgba(15,23,42,0.12);
+            animation: slideUpModal 0.32s cubic-bezier(0.34,1.3,0.64,1);
+        }
+
+        @keyframes slideUpModal {
+            from { transform: translateY(100%); }
+            to   { transform: translateY(0); }
+        }
+
+        .modal-icon {
+            width: 68px; height: 68px;
+            background: var(--green-light);
+            border: 2px solid var(--green-border);
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 18px;
+        }
+
+        .modal-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.35rem; font-weight: 800;
+            color: var(--text); margin-bottom: 8px;
+        }
+
+        .modal-body { color: var(--text-sub); font-size: 0.88rem; line-height: 1.6; margin-bottom: 20px; }
+
+        .credit-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--green-light); color: var(--green);
+            border: 1px solid var(--green-border);
+            padding: 6px 16px; border-radius: 50px;
+            font-weight: 700; font-size: 0.88rem; margin-bottom: 22px;
+        }
+
+        .btn-modal-close {
+            background: var(--surface2); color: var(--text);
+            border: 1.5px solid var(--border-strong);
+            padding: 14px 24px; border-radius: var(--r-sm);
+            font-weight: 600; cursor: pointer; width: 100%;
+            font-size: 0.95rem; font-family: 'DM Sans', sans-serif;
+            transition: background 0.15s;
+        }
+        .btn-modal-close:hover { background: #E2E8F0; }
+
+        /* ══════════════════════════════════════
+           MISC
+        ══════════════════════════════════════ */
+        .notranslate { translate: no; }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     SCREEN — LOGIN
+══════════════════════════════════════════════════════ -->
+<div id="screen-login" class="screen active">
+  <div class="login-center">
+    <div class="login-wrap">
+        <div class="login-brand">
+            <div class="login-logo">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="7.5" cy="15.5" r="4.5"/>
+                    <path d="M21 2l-9.6 9.6"/>
+                    <path d="M15.5 7.5l3 3L22 7l-3-3"/>
+                </svg>
+            </div>
+            <h1><span>SFD</span> Rider Access</h1>
+            <p>Welcome back! Please sign in to continue</p>
+        </div>
+
+        <div class="login-card">
+            <div class="form-group">
+                <label class="form-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                    Rider ID / Phone Number
+                </label>
+                <input type="text" class="form-input" id="riderIdInput"
+                    placeholder="Example: SFD-001 or Mobile Number"
+                    autocomplete="off" translate="no" spellcheck="false">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Your Name (Optional for new)
+                </label>
+                <input type="text" class="form-input" id="riderNameInput"
+                    placeholder="Type your full name"
+                    autocomplete="off" translate="no" spellcheck="false">
+            </div>
+
+            <button class="btn-login-main" onclick="loginRider()">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                ENTER THE APPLICATION
+            </button>
+
+            <div class="login-security">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                Your data is safe and secure with us.
+            </div>
+
+            <div id="loginStatus" class="status-msg" style="margin-top:14px;"></div>
+        </div>
+    </div><!-- login-center -->
+</div><!-- screen-login -->
+
+<!-- ══════════════════════════════════════════════════════
+     SCREEN — HOME
+══════════════════════════════════════════════════════ -->
+<div id="screen-home" class="screen">
+
+    <!-- Header -->
+    <div class="home-header">
+        <button class="hdr-icon-btn" title="Menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="3" y1="6"  x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+        </button>
+        <div class="hdr-brand"><span>SFD</span> Rider Hub</div>
+        <button class="hdr-icon-btn hdr-notif" title="Notifications">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span class="hdr-notif-dot"></span>
+        </button>
+    </div>
+
+    <!-- User card -->
+    <div class="home-body">
+        <div class="user-card">
+            <div class="user-left">
+                <div class="user-avatar">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="user-greeting" id="greetingText">Good morning,</div>
+                    <div class="user-name" id="lblRiderName">—</div>
+                </div>
+            </div>
+
+            <div id="lblCredits" class="credits-badge">
+                <div class="credits-icon-wrap">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                </div>
+                <div class="credits-text">
+                    <span class="credits-label-sm">My Credits</span>
+                    <span class="credits-num"><span id="creditNum">0</span> Credits</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero banner with city SVG -->
+    <div class="hero-wrap">
+        <svg class="hero-city" viewBox="0 0 420 148" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Background -->
+            <rect width="420" height="148" fill="url(#hg)"/>
+            <defs>
+                <linearGradient id="hg" x1="0" y1="0" x2="0" y2="148" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#FFF0E5"/>
+                    <stop offset="1" stop-color="#FFE2CC"/>
+                </linearGradient>
+            </defs>
+            <!-- Far buildings left -->
+            <rect x="0"   y="62" width="28" height="86" rx="2" fill="#FFBF99" opacity=".38"/>
+            <rect x="4"   y="50" width="20" height="12" rx="1" fill="#FFBF99" opacity=".38"/>
+            <rect x="32"  y="50" width="38" height="98" rx="2" fill="#FFB380" opacity=".32"/>
+            <rect x="38"  y="38" width="26" height="12" rx="1" fill="#FFB380" opacity=".32"/>
+            <rect x="78"  y="28" width="52" height="120" rx="2" fill="#FFA766" opacity=".28"/>
+            <rect x="86"  y="16" width="36" height="12"  rx="1" fill="#FFA766" opacity=".28"/>
+            <!-- Windows left -->
+            <rect x="36" y="58" width="7" height="7" rx="1" fill="#FF8C3C" opacity=".28"/>
+            <rect x="48" y="58" width="7" height="7" rx="1" fill="#FF8C3C" opacity=".28"/>
+            <rect x="36" y="72" width="7" height="7" rx="1" fill="#FF8C3C" opacity=".28"/>
+            <rect x="48" y="72" width="7" height="7" rx="1" fill="#FF8C3C" opacity=".28"/>
+            <rect x="84" y="38" width="8" height="8" rx="1" fill="#FF8C3C" opacity=".22"/>
+            <rect x="98" y="38" width="8" height="8" rx="1" fill="#FF8C3C" opacity=".22"/>
+            <rect x="84" y="54" width="8" height="8" rx="1" fill="#FF8C3C" opacity=".22"/>
+            <rect x="98" y="54" width="8" height="8" rx="1" fill="#FF8C3C" opacity=".22"/>
+            <!-- Far buildings right -->
+            <rect x="342" y="46" width="52" height="102" rx="2" fill="#FFBF99" opacity=".32"/>
+            <rect x="348" y="34" width="40" height="12"  rx="1" fill="#FFBF99" opacity=".32"/>
+            <rect x="300" y="58" width="36" height="90"  rx="2" fill="#FFB380" opacity=".3"/>
+            <rect x="370" y="52" width="50" height="96"  rx="2" fill="#FFA766" opacity=".28"/>
+            <!-- Windows right -->
+            <rect x="308" y="65" width="7" height="7" rx="1" fill="#FF8C3C" opacity=".25"/>
+            <rect x="320" y="65" width="7" height="7" rx="1" fill="#FF8C3C" opacity=".25"/>
+            <rect x="348" y="54" width="8" height="8" rx="1" fill="#FF8C3C" opacity=".22"/>
+            <rect x="362" y="54" width="8" height="8" rx="1" fill="#FF8C3C" opacity=".22"/>
+            <!-- Tree left -->
+            <ellipse cx="148" cy="92" rx="16" ry="20" fill="#FFBF99" opacity=".42"/>
+            <rect x="144" y="112" width="8" height="18" rx="3" fill="#FFBF99" opacity=".42"/>
+            <!-- Tree right -->
+            <ellipse cx="268" cy="90" rx="18" ry="22" fill="#FFBF99" opacity=".38"/>
+            <rect x="263" y="112" width="10" height="18" rx="3" fill="#FFBF99" opacity=".38"/>
+            <!-- Road -->
+            <rect x="0" y="124" width="420" height="24" fill="#FFBF99" opacity=".28"/>
+            <rect x="140" y="131" width="28" height="5" rx="2.5" fill="#FFAA80" opacity=".38"/>
+            <rect x="196" y="131" width="28" height="5" rx="2.5" fill="#FFAA80" opacity=".38"/>
+            <rect x="252" y="131" width="28" height="5" rx="2.5" fill="#FFAA80" opacity=".38"/>
+        </svg>
+
+        <!-- Animated location pin -->
+        <div class="hero-pin">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Action Cards -->
+    <div class="home-cards">
+
+        <!-- FIND SELLER -->
+        <div class="action-card ac-orange card-delay-1" onclick="navigateTo('find')">
+            <div class="card-wm">
+                <svg width="130" height="130" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+            </div>
+
+            <div class="card-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+            </div>
+            <div class="card-title">Find Seller</div>
+            <div class="card-desc">Search for a seller by name</div>
+            <div class="card-arrow">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+        </div>
+
+        <!-- ENCODE SELLER -->
+        <div class="action-card ac-green card-delay-2" onclick="navigateTo('encode')">
+            <div class="card-wm">
+                <svg width="130" height="130" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+            </div>
+
+            <div class="card-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                </svg>
+            </div>
+            <div class="card-title">Encode Seller</div>
+            <div class="card-desc">Encode and save seller location</div>
+            <div class="card-arrow">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SCREEN — FIND SELLER
+══════════════════════════════════════════════════════ -->
+<div id="screen-find" class="screen">
+    <div class="sub-topbar"></div>
+    <div class="sub-header">
+        <button class="back-btn" onclick="navigateBack()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="sub-title">Find <span class="accent-orange">Seller</span></div>
+    </div>
+
+    <div class="sub-body">
+        <div class="sec-label">Search · −1 Credit per search</div>
+
+        <div class="c-card">
+            <div class="form-group" style="margin-bottom:12px;">
+                <label class="form-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    Seller Name
+                </label>
+                <div class="search-wrap">
+                    <input type="text" class="form-input" id="searchSeller"
+                        oninput="filterSellerDropdown()"
+                        placeholder="Enter seller name..."
+                        autocomplete="off" translate="no" spellcheck="false">
+                    <div id="searchDropdown" class="autocomplete-dropdown"></div>
+                </div>
+            </div>
+            <button class="btn btn-orange" onclick="searchSeller()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                SEARCH NOW (−1 CREDIT)
+            </button>
+        </div>
+
+        <div id="searchStatus" class="status-msg"></div>
+        <div id="searchResults"></div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SCREEN — ENCODE SELLER
+══════════════════════════════════════════════════════ -->
+<div id="screen-encode" class="screen">
+    <div class="sub-topbar green"></div>
+    <div class="sub-header">
+        <button class="back-btn" onclick="navigateBack()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="sub-title">Encode <span class="accent-green">Seller</span></div>
+    </div>
+
+    <div class="sub-body">
+        <div class="sec-label">Seller Details · +2 Credits when saved</div>
+
+        <div class="c-card">
+            <div class="form-group">
+                <label class="form-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    Seller / Shop Name
+                </label>
+                <input type="text" class="form-input green-focus" id="sellerName"
+                    placeholder="Enter seller name..."
+                    autocomplete="off" translate="no" spellcheck="false">
+            </div>
+
+            <button class="btn btn-blue-ghost" onclick="getLocation()" style="margin-bottom:0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+                GET MY LOCATION
+            </button>
+
+            <div class="divider"></div>
+
+            <div class="coords-row">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 8 12 1 19 8"/></svg>
+                        Latitude
+                    </label>
+                    <input type="text" class="form-input" id="latitude" placeholder="—" readonly>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="8 5 1 12 8 19"/></svg>
+                        Longitude
+                    </label>
+                    <input type="text" class="form-input" id="longitude" placeholder="—" readonly>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-green" onclick="saveToDatabase()" style="margin-bottom:14px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            SAVE LOCATION (+2 CREDITS)
+        </button>
+
+        <div id="encodeStatus" class="status-msg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>Ready to get location...</span>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SUCCESS MODAL
+══════════════════════════════════════════════════════ -->
+<div id="successModal" class="modal">
+    <div class="modal-card">
+        <div class="modal-icon">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+        </div>
+        <div class="modal-title">Location Saved!</div>
+        <div class="credit-pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            +2 Credits added!
+        </div>
+        <div class="modal-body">The seller location has been recorded.<br>This is a big help for other SFD Riders!</div>
+        <button class="btn-modal-close" onclick="closeModal()">Okay, Thanks!</button>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ── STATE ──────────────────────────────────────────────
+let currentRiderId  = '';
+let allSellersData  = [];
+let screenStack     = [];
+let isTransitioning = false;
+
+// ── INIT: set login screen display via inline style ───
+// This is critical: inline styles beat any CSS ID-selector specificity.
+// Without this, #screen-login { display:flex } in CSS would always override
+// .screen { display:none } after navigation, keeping login screen visible.
+(function initScreens() {
+    document.querySelectorAll('.screen').forEach(s => {
+        if (!s.classList.contains('active')) s.style.display = 'none';
+    });
+    const login = document.getElementById('screen-login');
+    if (login) login.style.display = 'flex';
+})();
+
+// ── NAVIGATION ─────────────────────────────────────────
+const EASE = 'transform 290ms cubic-bezier(0.25,0.46,0.45,0.94), opacity 270ms ease';
+
+// Which CSS display value each screen uses when visible
+function screenDisplay(screenId) {
+    return screenId === 'login' ? 'flex' : 'block';
+}
+
+// Wrapper: screen-login uses a flex-center inner div, all others scroll freely
+function showScreen(el, screenId) {
+    // Must use inline display so it overrides any ID-level CSS specificity
+    el.style.display = screenDisplay(screenId);
+    el.classList.add('active');
+}
+
+function hideScreen(el) {
+    // Inline display:none beats any CSS rule including #id selectors
+    el.style.display = 'none';
+    el.classList.remove('active');
+}
+
+function navigateTo(screenId) {
+    if (isTransitioning) return;
+    const current = document.querySelector('.screen.active');
+    const next    = document.getElementById('screen-' + screenId);
+    if (!next || next === current) return;
+
+    isTransitioning = true;
+    screenStack.push(current.id.replace('screen-', ''));
+
+    // 1. Instantly position next off-screen right (no transition yet)
+    next.style.transition    = 'none';
+    next.style.display       = screenDisplay(screenId);
+    next.style.transform     = 'translateX(100%)';
+    next.style.opacity       = '0';
+    next.style.pointerEvents = 'none';
+    next.style.zIndex        = '10';
+    next.getBoundingClientRect(); // force reflow
+
+    // 2. Animate both screens
+    next.style.transition    = EASE;
+    current.style.transition = EASE;
+    next.style.transform     = 'translateX(0)';
+    next.style.opacity       = '1';
+    next.style.pointerEvents = 'all';
+    current.style.transform  = 'translateX(-10%)';
+    current.style.opacity    = '0.65';
+
+    // 3. After animation: clean up
+    setTimeout(() => {
+        // Hide current — inline display:none overrides any CSS specificity
+        hideScreen(current);
+        current.style.transform  = '';
+        current.style.opacity    = '';
+        current.style.transition = '';
+
+        // Settle next into clean state
+        next.classList.add('active');
+        next.style.display       = screenDisplay(screenId);
+        next.style.transform     = '';
+        next.style.opacity       = '';
+        next.style.transition    = '';
+        next.style.zIndex        = '';
+        next.style.pointerEvents = '';
+
+        isTransitioning = false;
+        next.scrollTop  = 0;
+    }, 310);
+}
+
+function navigateBack() {
+    if (isTransitioning || screenStack.length === 0) return;
+    const current = document.querySelector('.screen.active');
+    const prevId  = screenStack.pop();
+    const prev    = document.getElementById('screen-' + prevId);
+    if (!prev) return;
+
+    isTransitioning = true;
+
+    // 1. Instantly position prev off-screen left (no transition yet)
+    prev.style.transition    = 'none';
+    prev.style.display       = screenDisplay(prevId);
+    prev.style.transform     = 'translateX(-10%)';
+    prev.style.opacity       = '0.65';
+    prev.style.pointerEvents = 'none';
+    prev.getBoundingClientRect(); // force reflow
+
+    // 2. Animate both screens
+    prev.style.transition    = EASE;
+    current.style.transition = EASE;
+    prev.style.transform     = 'translateX(0)';
+    prev.style.opacity       = '1';
+    prev.style.pointerEvents = 'all';
+    current.style.transform  = 'translateX(100%)';
+    current.style.opacity    = '0';
+
+    // 3. After animation: clean up
+    setTimeout(() => {
+        // Hide current with inline display:none
+        hideScreen(current);
+        current.style.transform  = '';
+        current.style.opacity    = '';
+        current.style.transition = '';
+
+        // Settle prev
+        prev.classList.add('active');
+        prev.style.display       = screenDisplay(prevId);
+        prev.style.transform     = '';
+        prev.style.opacity       = '';
+        prev.style.transition    = '';
+        prev.style.pointerEvents = '';
+
+        isTransitioning = false;
+    }, 310);
+}
+
+// ── HELPERS ────────────────────────────────────────────
+function getGreeting() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning,';
+    if (h < 17) return 'Good afternoon,';
+    return 'Good evening,';
+}
+
+function setStatus(elId, msg, type = '') {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.style.display = 'flex';
+    el.className = 'status-msg' + (type ? ' ' + type : '');
+    const icons = {
+        success: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>`,
+        error:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+        warning: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        loading: `<div class="dot-loader" style="flex-shrink:0"><span></span><span></span><span></span></div>`,
+        '':      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
+    };
+    el.innerHTML = (icons[type] || icons['']) + `<span class="notranslate">${msg}</span>`;
+}
+
+function updateCreditUI(credits) {
+    const num  = document.getElementById('creditNum');
+    const badge = document.getElementById('lblCredits');
+    if (num)   num.textContent = credits;
+    if (badge) badge.className = 'credits-badge' + (credits <= 0 ? ' low' : '');
+}
+
+function getDistanceKm(lat1, lon1, lat2, lon2) {
+    const R = 6371, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(2);
+}
+
+// ── LOAD SELLER NAMES ──────────────────────────────────
+async function loadSellerNames() {
+    try {
+        const res = await fetch('/api/all-seller-names');
+        if (res.ok) allSellersData = await res.json();
+    } catch(e) {}
+}
+loadSellerNames();
+
+// ── LOGIN ──────────────────────────────────────────────
+async function loginRider() {
+    const riderId   = document.getElementById('riderIdInput').value.trim();
+    const riderName = document.getElementById('riderNameInput').value.trim();
+
+    if (!riderId) { setStatus('loginStatus', 'Please enter your Rider ID.', 'warning'); return; }
+    setStatus('loginStatus', 'Connecting to server...', 'loading');
+
+    try {
+        const res  = await fetch('/api/rider-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ riderId, riderName })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            currentRiderId = data.rider_id;
+            document.getElementById('lblRiderName').textContent = data.name;
+            document.getElementById('greetingText').textContent = getGreeting();
+            updateCreditUI(data.credits);
+            navigateTo('home');
+        } else {
+            setStatus('loginStatus', data.error || 'Server error. Please try again.', 'error');
+        }
+    } catch(e) {
+        setStatus('loginStatus', 'Cannot connect to server. Please try again.', 'error');
+    }
+}
+
+// ── GPS LOCATION ───────────────────────────────────────
+function getLocation() {
+    if (!navigator.geolocation) { setStatus('encodeStatus', 'GPS is not available on this device.', 'error'); return; }
+    setStatus('encodeStatus', 'Getting your location...', 'loading');
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            document.getElementById('latitude').value  = pos.coords.latitude.toFixed(7);
+            document.getElementById('longitude').value = pos.coords.longitude.toFixed(7);
+            setStatus('encodeStatus', 'Location acquired! Ready to save.', 'success');
+        },
+        () => setStatus('encodeStatus', 'Could not get location. Please allow GPS access.', 'error'),
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+}
+
+// ── SAVE LOCATION ──────────────────────────────────────
+async function saveToDatabase() {
+    const seller = document.getElementById('sellerName').value.trim();
+    const lat    = document.getElementById('latitude').value;
+    const lng    = document.getElementById('longitude').value;
+
+    if (!seller) { setStatus('encodeStatus', 'Please enter the seller name first.', 'warning'); return; }
+    if (!lat || !lng) { setStatus('encodeStatus', 'Please get your location first.', 'warning'); return; }
+    setStatus('encodeStatus', 'Saving to database...', 'loading');
+
+    try {
+        const res  = await fetch('/api/save-location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ seller, lat, lng, riderId: currentRiderId })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            document.getElementById('successModal').classList.add('show');
+            setStatus('encodeStatus', 'Saved! Ready to encode another.', 'success');
+            updateCreditUI(data.totalCredits);
+            document.getElementById('sellerName').value  = '';
+            document.getElementById('latitude').value    = '';
+            document.getElementById('longitude').value   = '';
+            loadSellerNames();
+        } else {
+            setStatus('encodeStatus', data.error || 'Error saving. Please try again.', 'error');
+        }
+    } catch(e) {
+        setStatus('encodeStatus', 'Connection error. Please try again.', 'error');
+    }
+}
+
+function closeModal() {
+    document.getElementById('successModal').classList.remove('show');
+}
+
+// ── AUTOCOMPLETE ───────────────────────────────────────
+function filterSellerDropdown() {
+    const input    = document.getElementById('searchSeller').value.toLowerCase();
+    const dropdown = document.getElementById('searchDropdown');
+    dropdown.innerHTML = '';
+    if (!input.trim()) { dropdown.style.display = 'none'; return; }
+
+    const matches = allSellersData.filter(s => s.seller_name.toLowerCase().includes(input));
+    if (matches.length > 0) {
+        dropdown.style.display = 'block';
+        matches.slice(0, 8).forEach(seller => {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item';
+            item.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="notranslate">${seller.seller_name}</span>`;
+            item.onclick = () => { document.getElementById('searchSeller').value = seller.seller_name; dropdown.style.display = 'none'; };
+            dropdown.appendChild(item);
+        });
+    } else {
+        dropdown.style.display = 'none';
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const w = document.querySelector('.search-wrap');
+    if (w && !w.contains(e.target)) { const dd = document.getElementById('searchDropdown'); if (dd) dd.style.display = 'none'; }
+});
+
+// ── SEARCH SELLER ──────────────────────────────────────
+function searchSeller() {
+    const searchName       = document.getElementById('searchSeller').value.trim();
+    const resultsContainer = document.getElementById('searchResults');
+
+    resultsContainer.innerHTML = '';
+    document.getElementById('searchStatus').style.display = 'none';
+
+    if (!searchName) { setStatus('searchStatus', 'Please enter a seller name first.', 'warning'); return; }
+    if (!navigator.geolocation) { setStatus('searchStatus', 'GPS not available. Required to calculate distance.', 'error'); return; }
+
+    setStatus('searchStatus', 'Getting your location...', 'loading');
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const riderLat = position.coords.latitude;
+        const riderLng = position.coords.longitude;
+
+        setStatus('searchStatus', 'Searching for seller...', 'loading');
+
+        try {
+            const res  = await fetch(`/api/search-seller?name=${encodeURIComponent(searchName)}&riderId=${encodeURIComponent(currentRiderId)}`);
+            const data = await res.json();
+
+            if (!res.ok) { setStatus('searchStatus', data.error || 'Error during search. Please try again.', 'error'); return; }
+
+            updateCreditUI(data.remainingCredits);
+
+            if (!data.sellers || data.sellers.length === 0) {
+                setStatus('searchStatus', `No seller found matching "${searchName}".`, 'error');
+                resultsContainer.innerHTML = `<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><p class="notranslate">Try a different name</p></div>`;
+                return;
+            }
+
+            setStatus('searchStatus', `${data.sellers.length} seller(s) found!`, 'success');
+
+            data.sellers.forEach((item, index) => {
+                const distance = getDistanceKm(riderLat, riderLng, item.latitude, item.longitude);
+                const mapId    = `map-${index}`;
+                const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}`;
+
+                const div = document.createElement('div');
+                div.className = 'result-card';
+                div.innerHTML = `
+                    <div class="result-header">
+                        <div class="result-name notranslate">${item.seller_name}</div>
+                        <div class="dist-badge notranslate" id="badge-${index}">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+                            ${distance} km
+                        </div>
+                    </div>
+                    <div id="${mapId}" class="map-preview"></div>
+                    <div class="route-loading" id="route-loading-${index}">
+                        <div class="dot-loader"><span></span><span></span><span></span></div>
+                        Calculating road route...
+                    </div>
+                    <div class="route-info-bar" id="route-info-${index}"></div>
+                    <a href="${gmapsUrl}" target="_blank" class="btn btn-navigate" style="margin-top:10px;margin-bottom:0;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                        <span class="notranslate">NAVIGATE IN GOOGLE MAPS</span>
+                    </a>`;
+                resultsContainer.appendChild(div);
+
+                setTimeout(async () => {
+                    const map = L.map(mapId, { zoomControl: false });
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+
+                    const riderIcon  = L.divIcon({ html: `<div style="background:#3B82F6;width:13px;height:13px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 8px rgba(59,130,246,.9);"></div>`, iconSize:[13,13], iconAnchor:[6,6], className:'' });
+                    const sellerIcon = L.divIcon({ html: `<div style="background:#FF6B00;width:15px;height:15px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 8px rgba(255,107,0,.9);"></div>`, iconSize:[15,15], iconAnchor:[7,7], className:'' });
+
+                    const rM = L.marker([riderLat, riderLng], { icon: riderIcon  }).addTo(map).bindPopup("<span class='notranslate'>You</span>");
+                    const sM = L.marker([item.latitude, item.longitude], { icon: sellerIcon }).addTo(map).bindPopup(`<span class='notranslate'>${item.seller_name}</span>`);
+
+                    map.fitBounds(L.featureGroup([rM, sM]).getBounds(), { padding:[28,28] });
+
+                    try {
+                        const rd = await (await fetch(`https://router.project-osrm.org/route/v1/driving/${riderLng},${riderLat};${item.longitude},${item.latitude}?geometries=geojson&overvie

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DICT Field Checklist</title>
+  <style>
+    :root {
+      --primary: #0056b3; --success: #4CAF50; --danger: #f44336; --bg: #f2f2f2;
+    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); padding: 15px; margin: 0; }
+    .container { max-width: 420px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    h2 { text-align: center; color: var(--primary); margin-bottom: 20px; }
+    .section { margin-bottom: 18px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+    select, input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+    .btn-group { display: flex; gap: 5px; }
+    button.opt { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; font-weight: 600; background: white; transition: 0.2s; }
+    button.ok.active { background: var(--success); color: white; border-color: var(--success); }
+    button.bad.active { background: var(--danger); color: white; border-color: var(--danger); }
+    .analyze-btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    .cms-btn { width: 100%; padding: 15px; background: #333; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; display: none; }
+    .result { padding: 15px; text-align: center; font-weight: bold; margin-top: 15px; border-radius: 6px; font-size: 15px; }
+    .issue-found { background: #fee2e2; color: #991b1b; }
+    .all-good { background: #dcfce7; color: #166534; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>📡 DICT Field App</h2>
+
+  <div class="section">
+    <label>👤 Technician Name</label>
+    <select id="tech">
+      <option value="">Select Technician...</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <label>🏢 Site Name / ID Search</label>
+    <input id="siteInput" list="siteList" placeholder="Start typing site or ID...">
+    <datalist id="siteList"></datalist>
+  </div>
+
+  <div class="section">
+    <p>🔌 Power Status</p>
+    <div class="btn-group">
+      <button class="opt ok" onclick="set('power','OK', this)">OK</button>
+      <button class="opt bad" onclick="set('power','NOT OK', this)">NOT OK</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>🚨 LOS Light</p>
+    <div class="btn-group">
+      <button class="opt ok" onclick="set('los','Off', this)">OFF</button>
+      <button class="opt bad" onclick="set('los','Red', this)">RED</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>🌍 Internet Connectivity</p>
+    <div class="btn-group">
+      <button class="opt ok" onclick="set('net','Working', this)">WORKING</button>
+      <button class="opt bad" onclick="set('net','No Internet', this)">NO INTERNET</button>
+    </div>
+  </div>
+
+  <button class="analyze-btn" onclick="analyze()">🔍 Generate Diagnostic Report</button>
+  
+  <div id="output" class="result"></div>
+
+  <button id="cmsBtn" class="cms-btn" onclick="redirectToCMS()">📝 Proceed to CMS Data Entry</button>
+</div>
+
+<script>
+let diagData = {};
+
+// 1. Initialize Data from Sheets
+window.onload = function() {
+  google.script.run.withSuccessHandler(populateFields).getDiagnosticData();
+};
+
+function populateFields(data) {
+  const techSelect = document.getElementById('tech');
+  data.technicians.forEach(t => {
+    let opt = document.createElement('option');
+    opt.value = t; opt.text = t;
+    techSelect.add(opt);
+  });
+
+  const siteList = document.getElementById('siteList');
+  data.sites.forEach(s => {
+    let opt = document.createElement('option');
+    opt.value = `${s.name} (${s.id})`;
+    siteList.appendChild(opt);
+  });
+}
+
+// 2. Interaction Logic
+function set(key, value, btn) {
+  diagData[key] = value;
+  const parent = btn.parentElement;
+  parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function analyze() {
+  let resultText = "UNKNOWN ISSUE";
+  let isGood = false;
+
+  if(diagData.power === "NOT OK") resultText = "⚡ POWER ISSUE: Fix source/adapter.";
+  else if(diagData.los === "Red") resultText = "🚨 FIBER ISSUE: LOS is Red. Check patch cord.";
+  else if(diagData.net === "No Internet") resultText = "🌍 WAN ISSUE: Check Captive Portal.";
+  else if(diagData.net === "Working") {
+    resultText = "✅ SYSTEM OK: Ready for submission.";
+    isGood = true;
+  }
+
+  const out = document.getElementById("output");
+  out.innerHTML = resultText;
+  out.className = "result " + (isGood ? "all-good" : "issue-found");
+  
+  // Show Redirection Button
+  document.getElementById("cmsBtn").style.display = "block";
+}
+
+// 3. Redirection Logic
+function redirectToCMS() {
+  // Option A: If you are using a Multi-page Web App, call the server to change view
+  // google.script.run.loadCMSView(); 
+  
+  // Option B: Redirect to a specific published URL (replace with your Apps Script Web App URL)
+  const cmsUrl = "YOUR_SCRIPT_URL_HERE"; 
+  window.top.location.href = cmsUrl;
+}
+</script>
+
+</body>
+</html>
