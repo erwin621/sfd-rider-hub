@@ -13,6 +13,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
   <style>
   /* ════════════════════════════════════════════════
@@ -46,10 +49,12 @@
     --surface-2:   #F9FAFB;
     --border:      #E5E7EB;
     --border-2:    #D1D5DB;
-    --text:        #111827;
-    --text-2:      #374151;
-    --text-muted:  #6B7280;
-    --text-sub:    #9CA3AF;
+
+    /* Text — MD3 redesign requires high-contrast, no light gray anywhere */
+    --text:        #000000; /* primary text */
+    --text-2:      #444444; /* secondary text */
+    --text-muted:  #444444; /* was light gray — unified to secondary per spec */
+    --text-sub:    #444444; /* was light gray — unified to secondary per spec */
 
     /* Shadows */
     --sh-xs: 0 1px 3px rgba(0,0,0,0.05);
@@ -65,6 +70,17 @@
     --r-lg:  20px;
     --r-xl:  24px;
     --r-2xl: 32px;
+    --r-pill: 999px;
+
+    /* MD3 — verification status colors (Live Map legend) */
+    --status-verified:  #16A34A;
+    --status-pending:   #D97706;
+    --status-pending-bg:#FEF3E2;
+    --status-pending-border: #FDE0A8;
+    --status-reported:  #DC2626;
+
+    /* Bottom nav */
+    --nav-h: 66px;
   }
 
   html, body {
@@ -1061,6 +1077,918 @@
     box-shadow: var(--sh-md) !important;
     font-family: inherit !important;
   }
+
+  /* ════════════════════════════════════════════════
+     PHONE + OTP AUTH SCREENS
+  ════════════════════════════════════════════════ */
+  #phoneEntryPage, #otpVerifyPage {
+    background: linear-gradient(175deg, #FFFAF7 0%, #FFF0E5 45%, #FFE3CC 100%);
+    align-items: center;
+    justify-content: center;
+    padding: 28px 20px;
+    overflow-y: auto;
+  }
+
+  #phoneEntryPage::before, #otpVerifyPage::before,
+  #phoneEntryPage::after,  #otpVerifyPage::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  #phoneEntryPage::before, #otpVerifyPage::before {
+    width: 340px; height: 340px;
+    background: radial-gradient(circle, rgba(255,102,33,0.09) 0%, transparent 70%);
+    top: -80px; right: -80px;
+  }
+
+  #phoneEntryPage::after, #otpVerifyPage::after {
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(255,102,33,0.06) 0%, transparent 70%);
+    bottom: -60px; left: -60px;
+  }
+
+  .otp-back-row {
+    width: 100%; max-width: 420px;
+    display: flex; align-items: center;
+    margin-bottom: 18px; position: relative; z-index: 1;
+  }
+
+  .mobile-prefix-row {
+    display: flex; align-items: stretch; gap: 8px;
+  }
+
+  .mobile-prefix-chip {
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 14px;
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-sm);
+    font-size: 15px; font-weight: 700; color: var(--text);
+    flex-shrink: 0;
+  }
+
+  .otp-digits-row {
+    display: flex; gap: 8px; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .otp-digit {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: 52px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-sm);
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    -webkit-appearance: none;
+  }
+
+  .otp-digit:focus {
+    background: var(--surface);
+    border-color: var(--orange);
+    box-shadow: 0 0 0 4px rgba(255,102,33,0.10);
+  }
+
+  .otp-meta-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 4px; margin-bottom: 18px;
+  }
+
+  .otp-mobile-display {
+    font-size: 13px; color: var(--text-2); font-weight: 600;
+  }
+
+  .otp-resend-btn {
+    font-size: 13px; font-weight: 700; color: var(--orange);
+    background: none; border: none; cursor: pointer; font-family: inherit;
+    padding: 4px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .otp-resend-btn:disabled { color: var(--text-2); cursor: default; }
+
+  .dev-otp-banner {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--blue-bg);
+    border: 1.5px solid #BFDBFE;
+    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    font-size: 12.5px; color: var(--blue); font-weight: 600;
+    margin-bottom: 16px; line-height: 1.4;
+  }
+
+  /* ════════════════════════════════════════════════
+     BOTTOM NAVIGATION (MD3 NavigationBar)
+  ════════════════════════════════════════════════ */
+  .bottom-nav {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 14px rgba(0,0,0,0.06);
+    display: flex;
+    align-items: stretch;
+    z-index: 500;
+  }
+
+  .nav-item {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px;
+    background: none; border: none; cursor: pointer; font-family: inherit;
+    color: var(--text-2);
+    -webkit-tap-highlight-color: transparent;
+    padding: 8px 4px 6px;
+  }
+
+  .nav-icon-slot {
+    width: 44px; height: 26px;
+    border-radius: var(--r-pill);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s ease;
+  }
+
+  .nav-item.active .nav-icon-slot { background: var(--orange-bg); }
+  .nav-item.active { color: var(--orange); }
+
+  .nav-label {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.1px;
+  }
+
+  .nav-item:active .nav-icon-slot { transform: scale(0.92); }
+
+  /* Tab pages need bottom padding so content clears the nav bar */
+  .pg-body-tabbed { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px) !important; }
+
+  /* ════════════════════════════════════════════════
+     VERIFICATION STATUS CHIPS
+  ════════════════════════════════════════════════ */
+  .vchip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: var(--r-pill);
+    font-size: 11px; font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .vchip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  .vchip-verified { background: var(--green-bg); color: var(--status-verified); }
+  .vchip-verified .vchip-dot { background: var(--status-verified); }
+
+  .vchip-pending { background: var(--status-pending-bg); color: var(--status-pending); }
+  .vchip-pending .vchip-dot { background: var(--status-pending); }
+
+  .vchip-reported { background: var(--red-bg); color: var(--status-reported); }
+  .vchip-reported .vchip-dot { background: var(--status-reported); }
+
+  /* ════════════════════════════════════════════════
+     HOME — NEARBY / RECENTLY VIEWED SELLERS
+  ════════════════════════════════════════════════ */
+  .section-heading-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 4px 12px;
+  }
+
+  .section-heading {
+    font-size: 15px; font-weight: 800; color: var(--text);
+    letter-spacing: -0.2px;
+  }
+
+  .section-heading-link {
+    font-size: 12px; font-weight: 700; color: var(--orange);
+    background: none; border: none; cursor: pointer; font-family: inherit;
+  }
+
+  .seller-mini-card {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: transform 0.14s ease, box-shadow 0.14s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .seller-mini-card:active { transform: scale(0.98); }
+
+  .seller-mini-icon {
+    width: 40px; height: 40px; border-radius: var(--r-sm);
+    background: var(--orange-bg); color: var(--orange);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .seller-mini-info { flex: 1; min-width: 0; }
+
+  .seller-mini-name {
+    font-size: 14px; font-weight: 700; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .seller-mini-meta {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 4px;
+    font-size: 12px; color: var(--text-2); font-weight: 600;
+  }
+
+  .recent-strip {
+    display: flex; gap: 10px; overflow-x: auto; padding: 2px 4px 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .recent-strip::-webkit-scrollbar { display: none; }
+
+  .recent-chip {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-pill);
+    padding: 8px 14px 8px 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .recent-chip-icon {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--orange-bg); color: var(--orange);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .recent-chip-name {
+    font-size: 12.5px; font-weight: 700; color: var(--text);
+    max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ════════════════════════════════════════════════
+     LIVE MAP TAB
+  ════════════════════════════════════════════════ */
+  #liveMapPage .pg-body { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+
+  .map-tab-header {
+    background: var(--surface);
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .map-tab-title {
+    font-size: 19px; font-weight: 800; color: var(--text);
+    letter-spacing: -0.3px; margin-bottom: 10px;
+  }
+
+  .map-legend-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  #mapCanvasWrap {
+    position: relative;
+    flex: 1;
+    min-height: 280px;
+  }
+
+  #liveMapCanvas { width: 100%; height: 100%; background: var(--surface-2); }
+
+  .map-fab {
+    position: absolute;
+    right: 16px;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px);
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    box-shadow: var(--sh-md);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--orange);
+    cursor: pointer;
+    z-index: 400;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .map-fab:active { transform: scale(0.92); }
+
+  .map-loading-overlay {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface-2);
+    z-index: 300;
+    flex-direction: column; gap: 10px;
+    text-align: center; padding: 20px;
+  }
+
+  .map-error-retry-btn {
+    margin-top: 4px; padding: 9px 18px;
+    background: var(--orange); color: #fff;
+    border: none; border-radius: var(--r-sm);
+    font-size: 13px; font-weight: 700; font-family: inherit;
+    cursor: pointer;
+  }
+
+  .leaflet-popup-content { margin: 12px 14px; }
+
+  .map-popup-name { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+  .map-popup-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12.5px; font-weight: 700; color: var(--orange);
+    text-decoration: none; margin-top: 8px;
+  }
+
+  /* ════════════════════════════════════════════════
+     CONTRIBUTIONS TAB
+  ════════════════════════════════════════════════ */
+  .contrib-stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+
+  .contrib-stat-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 18px 16px;
+    box-shadow: var(--sh-xs);
+  }
+
+  .contrib-stat-value {
+    font-size: 26px; font-weight: 900; color: var(--orange);
+    letter-spacing: -0.5px; line-height: 1;
+  }
+
+  .contrib-stat-label {
+    font-size: 12px; font-weight: 600; color: var(--text-2);
+    margin-top: 6px;
+  }
+
+  .contrib-list-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 13px 14px;
+    margin-bottom: 10px;
+  }
+
+  .contrib-list-info { flex: 1; min-width: 0; }
+
+  .contrib-list-name {
+    font-size: 14px; font-weight: 700; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .contrib-list-date {
+    font-size: 12px; color: var(--text-2); font-weight: 600; margin-top: 3px;
+  }
+
+  /* ════════════════════════════════════════════════
+     PROFILE TAB
+  ════════════════════════════════════════════════ */
+  .profile-hero {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 20px 22px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .profile-avatar {
+    width: 76px; height: 76px; border-radius: 50%;
+    background: linear-gradient(145deg, var(--orange), var(--orange-dark));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 28px; font-weight: 800;
+    box-shadow: 0 6px 20px var(--orange-glow);
+    margin-bottom: 14px;
+  }
+
+  .profile-name { font-size: 19px; font-weight: 800; color: var(--text); letter-spacing: -0.3px; }
+  .profile-mobile { font-size: 13px; color: var(--text-2); font-weight: 600; margin-top: 4px; }
+
+  .profile-role-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 10px;
+    padding: 5px 13px; border-radius: var(--r-pill);
+    background: var(--orange-bg); color: var(--orange);
+    font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  .profile-info-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 15px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .profile-info-row:last-child { border-bottom: none; }
+
+  .profile-info-label {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 14px; font-weight: 600; color: var(--text-2);
+  }
+
+  .profile-info-value { font-size: 14px; font-weight: 700; color: var(--text); }
+
+  .btn-logout {
+    width: 100%; padding: 14px;
+    background: var(--red-bg); color: var(--red);
+    border: 1.5px solid rgba(220,38,38,0.25);
+    border-radius: var(--r-sm);
+    font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 22px;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-logout:active { transform: scale(0.98); }
+
+  .app-version-footer {
+    text-align: center; font-size: 11.5px; color: var(--text-2); font-weight: 500;
+    margin-top: 20px; opacity: 0.7;
+  }
+
+  /* ════════════════════════════════════════════════
+     SELLER BOTTOM SHEET (Phase 2)
+  ════════════════════════════════════════════════ */
+  .sheet-scrim {
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    background: rgba(17,24,39,0.5);
+    z-index: 900;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.26s ease;
+  }
+
+  .sheet-scrim.show { opacity: 1; pointer-events: auto; }
+
+  .seller-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    z-index: 901;
+    background: var(--surface);
+    border-radius: 22px 22px 0 0;
+    box-shadow: var(--sh-xl);
+    max-height: 82vh;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.32,0.72,0,1);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .seller-sheet.show { transform: translateY(0); }
+
+  .sheet-handle-row {
+    display: flex; justify-content: center;
+    padding: 10px 0 4px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .sheet-handle {
+    width: 38px; height: 4px; border-radius: var(--r-pill);
+    background: var(--border-2);
+  }
+
+  .sheet-scroll {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 20px 24px;
+  }
+
+  .sheet-header-row {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 10px; margin-bottom: 8px;
+  }
+
+  .sheet-seller-name {
+    font-size: 19px; font-weight: 800; color: var(--text);
+    letter-spacing: -0.3px; line-height: 1.25;
+  }
+
+  .sheet-meta-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-size: 12.5px; color: var(--text-2); font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .sheet-landmark-row {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--text-2); font-weight: 500;
+    margin-top: 8px; padding: 9px 11px;
+    background: var(--surface-2);
+    border-radius: var(--r-sm);
+  }
+
+  .sheet-action-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin-top: 16px;
+  }
+
+  .sheet-btn {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 12px 10px;
+    border-radius: var(--r-sm);
+    font-size: 13px; font-weight: 700; font-family: inherit;
+    cursor: pointer; border: 1.5px solid transparent;
+    transition: transform 0.14s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .sheet-btn:active { transform: scale(0.96); }
+  .sheet-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .sheet-btn-navigate { background: linear-gradient(135deg, var(--orange), var(--orange-dark)); color: #fff; }
+  .sheet-btn-waze     { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+  .sheet-btn-confirm  { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+  .sheet-btn-report   { background: var(--red-bg); color: var(--red); border-color: rgba(220,38,38,0.25); }
+
+  .sheet-toggle-row { display: flex; gap: 10px; margin-top: 12px; }
+
+  .sheet-toggle-btn {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px; border-radius: var(--r-sm);
+    background: var(--surface-2); border: 1.5px solid var(--border);
+    color: var(--text-2); font-size: 12.5px; font-weight: 700; font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .sheet-toggle-btn.active { background: var(--orange-bg); color: var(--orange); border-color: var(--orange-border); }
+
+  .sheet-panel {
+    display: none;
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--surface-2);
+    border-radius: var(--r-sm);
+    min-height: 60px;
+  }
+
+  .sheet-panel.show { display: block; }
+
+  .sheet-photo-strip { display: flex; gap: 8px; overflow-x: auto; }
+  .sheet-photo-strip::-webkit-scrollbar { display: none; }
+
+  .sheet-photo-thumb {
+    width: 84px; height: 84px; border-radius: var(--r-xs);
+    object-fit: cover; flex-shrink: 0; background: var(--border);
+  }
+
+  .sheet-note-item {
+    font-size: 13px; color: var(--text); font-weight: 500;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .sheet-note-item:last-child { border-bottom: none; }
+
+  .sheet-status-msg { margin-top: 12px; }
+
+  /* Custom marker-cluster bubbles, brand-colored instead of default yellow/orange */
+  .sfd-cluster-icon {
+    background: var(--orange);
+    color: #fff;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 13px;
+    border: 3px solid rgba(255,255,255,0.9);
+    box-shadow: 0 3px 10px rgba(255,102,33,0.45);
+  }
+
+  /* ════════════════════════════════════════════════
+     ENCODE — PIN MAP (Phase 3)
+  ════════════════════════════════════════════════ */
+  .encode-pin-map {
+    width: 100%; height: 170px;
+    border-radius: var(--r-sm);
+    overflow: hidden;
+    margin-top: 8px;
+    border: 1.5px solid var(--border);
+  }
+
+  /* ════════════════════════════════════════════════
+     PHOTO PICKER (encode form + bottom sheet, Phase 3)
+  ════════════════════════════════════════════════ */
+  .photo-type-row {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .photo-type-chip {
+    padding: 8px 13px;
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    color: var(--text-2);
+    font-size: 12px; font-weight: 700; font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .photo-type-chip:active { transform: scale(0.96); }
+  .photo-type-chip.small { padding: 7px 11px; font-size: 11.5px; }
+
+  .photo-thumb-strip {
+    display: flex; gap: 10px; overflow-x: auto;
+    margin-top: 12px;
+    padding-bottom: 2px;
+  }
+
+  .photo-thumb-strip:empty { display: none; }
+  .photo-thumb-strip::-webkit-scrollbar { display: none; }
+
+  .photo-thumb-item {
+    position: relative; flex-shrink: 0;
+    width: 76px;
+  }
+
+  .photo-thumb-img {
+    width: 76px; height: 76px; border-radius: var(--r-xs);
+    object-fit: cover; display: block;
+    border: 1.5px solid var(--border);
+  }
+
+  .photo-thumb-remove {
+    position: absolute; top: -6px; right: -6px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--red); color: #fff;
+    border: 2px solid var(--surface);
+    font-size: 13px; font-weight: 800; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+  }
+
+  .photo-thumb-label {
+    font-size: 10px; font-weight: 700; color: var(--text-2);
+    text-align: center; margin-top: 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ════════════════════════════════════════════════
+     DUPLICATE-CHECK MODAL (Phase 3)
+  ════════════════════════════════════════════════ */
+  .dup-modal {
+    position: fixed; left: 20px; right: 20px; top: 50%;
+    transform: translateY(-50%) scale(0.94);
+    z-index: 901;
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    box-shadow: var(--sh-xl);
+    padding: 22px 20px;
+    max-height: 78vh; overflow-y: auto;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.24s ease, transform 0.24s ease;
+  }
+
+  .dup-modal.show {
+    opacity: 1; pointer-events: auto;
+    transform: translateY(-50%) scale(1);
+  }
+
+  .dup-modal-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; color: var(--status-pending); }
+  .dup-modal-title { font-size: 17px; font-weight: 800; color: var(--text); letter-spacing: -0.2px; }
+  .dup-modal-sub { font-size: 13px; color: var(--text-2); font-weight: 500; margin-bottom: 16px; line-height: 1.4; }
+
+  .dup-candidate-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .dup-candidate-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 12px;
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-sm);
+  }
+
+  .dup-use-btn {
+    flex-shrink: 0;
+    padding: 8px 13px;
+    background: var(--orange); color: #fff;
+    border: none; border-radius: var(--r-sm);
+    font-size: 12px; font-weight: 700; font-family: inherit;
+    cursor: pointer;
+  }
+
+  .btn-text-cancel {
+    display: block; width: 100%; text-align: center;
+    margin-top: 12px; padding: 8px;
+    background: none; border: none;
+    color: var(--text-2); font-size: 13px; font-weight: 700; font-family: inherit;
+    cursor: pointer;
+  }
+
+  /* ════════════════════════════════════════════════
+     BOTTOM-SHEET ADD ROW (notes composer, Phase 3)
+  ════════════════════════════════════════════════ */
+  .sheet-add-row { display: flex; gap: 8px; margin-top: 4px; }
+  .sheet-add-row .field-input { flex: 1; padding: 10px 12px; font-size: 13px; }
+
+  .sheet-add-btn {
+    flex-shrink: 0;
+    padding: 0 16px;
+    background: var(--orange); color: #fff;
+    border: none; border-radius: var(--r-sm);
+    font-size: 13px; font-weight: 700; font-family: inherit;
+    cursor: pointer;
+  }
+
+  /* ════════════════════════════════════════════════
+     GEOFENCE "SELLER NEARBY" ALERT (Phase 3)
+  ════════════════════════════════════════════════ */
+  .geofence-alert {
+    position: fixed;
+    left: 16px; right: 16px;
+    top: calc(env(safe-area-inset-top) + 14px);
+    z-index: 950;
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    box-shadow: var(--sh-xl);
+    border: 1.5px solid var(--border);
+    padding: 16px 16px 14px;
+    transform: translateY(-140%);
+    opacity: 0;
+    transition: transform 0.34s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s ease;
+  }
+
+  .geofence-alert.show { transform: translateY(0); opacity: 1; }
+
+  .geofence-alert-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+
+  .geofence-alert-icon {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--orange-bg); color: var(--orange);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .geofence-alert-title { font-size: 11.5px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.4px; }
+  .geofence-alert-name  { font-size: 15px; font-weight: 800; color: var(--text); margin-top: 1px; }
+  .geofence-alert-dist  { font-size: 12.5px; color: var(--text-2); font-weight: 600; margin-top: 2px; margin-left: 44px; }
+
+  .geofence-alert-actions { display: flex; gap: 10px; margin-top: 12px; }
+
+  .geofence-btn {
+    flex: 1; padding: 10px; border-radius: var(--r-sm);
+    font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer;
+    border: 1.5px solid transparent;
+  }
+
+  .geofence-btn-open   { background: var(--orange); color: #fff; }
+  .geofence-btn-ignore { background: var(--surface-2); color: var(--text-2); border-color: var(--border); }
+
+  /* ════════════════════════════════════════════════
+     PROFILE — MODERATOR / ADMIN TOOL LINKS (Phase 4)
+  ════════════════════════════════════════════════ */
+  .tool-link-row {
+    width: 100%;
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    margin-bottom: 10px;
+    font-size: 14px; font-weight: 700; color: var(--text);
+    font-family: inherit; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tool-link-row svg:first-child { color: var(--orange); flex-shrink: 0; }
+  .tool-link-row svg:last-child  { margin-left: auto; color: var(--text-2); flex-shrink: 0; }
+  .tool-link-row:active { transform: scale(0.98); }
+
+  /* ════════════════════════════════════════════════
+     MODERATION / ADMIN — shared queue + tab-strip UI
+  ════════════════════════════════════════════════ */
+  .mod-tab-strip {
+    display: flex; gap: 6px;
+    padding: 12px 16px 14px;
+    overflow-x: auto;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .mod-tab-strip::-webkit-scrollbar { display: none; }
+
+  .mod-tab {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    color: var(--text-2);
+    font-size: 12.5px; font-weight: 700; font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mod-tab.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+
+  .mod-queue-item {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .mod-queue-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .mod-queue-name { font-size: 14px; font-weight: 800; color: var(--text); }
+  .mod-queue-meta { font-size: 12px; color: var(--text-2); font-weight: 600; margin-top: 4px; line-height: 1.5; }
+  .mod-queue-meta a { color: var(--orange); font-weight: 700; text-decoration: none; }
+
+  .mod-queue-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+  .mod-btn {
+    flex: 1; padding: 9px; border-radius: var(--r-sm);
+    font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer;
+    border: 1.5px solid transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mod-btn-approve { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+  .mod-btn-reject  { background: var(--red-bg); color: var(--red); border-color: rgba(220,38,38,0.25); }
+  .mod-btn-neutral { background: var(--surface-2); color: var(--text-2); border-color: var(--border); }
+  .mod-btn:active  { transform: scale(0.96); }
+
+  /* Merge picker */
+  .merge-search-results { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; }
+
+  .merge-result-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .merge-selected-chip {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-top: 8px; padding: 10px 12px;
+    background: var(--orange-bg);
+    border: 1.5px solid var(--orange-border);
+    border-radius: var(--r-sm);
+    font-size: 13px; font-weight: 700; color: var(--orange);
+  }
+
+  .merge-selected-clear {
+    background: none; border: none; color: var(--orange); font-size: 16px; font-weight: 800;
+    cursor: pointer; padding: 0 2px; line-height: 1;
+  }
+
+  /* Admin analytics */
+  .admin-stat-list { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r-md); padding: 4px 14px; margin-bottom: 18px; }
+
+  .admin-stat-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .admin-stat-row:last-child { border-bottom: none; }
+
+  .admin-stat-row-label { font-size: 13.5px; color: var(--text-2); font-weight: 600; }
+  .admin-stat-row-value { font-size: 14px; color: var(--text); font-weight: 800; }
+
+  /* User management rows */
+  .user-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+
+  .user-row-info { flex: 1; min-width: 140px; }
+  .user-row-name { font-size: 13.5px; font-weight: 700; color: var(--text); }
+  .user-row-meta { font-size: 11.5px; color: var(--text-2); font-weight: 600; margin-top: 2px; }
+
+  .user-role-select {
+    padding: 7px 10px;
+    border-radius: var(--r-xs);
+    border: 1.5px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: 12px; font-weight: 700; font-family: inherit;
+  }
+
+  .user-ban-btn {
+    padding: 7px 12px;
+    border-radius: var(--r-xs);
+    border: 1.5px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-2);
+    font-size: 12px; font-weight: 700; font-family: inherit;
+    cursor: pointer;
+  }
+
+  .user-ban-btn.banned { background: var(--red-bg); color: var(--red); border-color: rgba(220,38,38,0.25); }
   </style>
 </head>
 <body>
@@ -1070,18 +1998,10 @@
 <!-- ╔══════════════════════════════════════════════╗
      ║  LOGIN PAGE                                  ║
      ╚══════════════════════════════════════════════╝ -->
-<div id="loginPage" class="page"
+<div id="phoneEntryPage" class="page"
      style="align-items:center; justify-content:center;
             padding:32px 20px; overflow-y:auto;
             background:linear-gradient(175deg,#FFFAF7 0%,#FFF0E5 45%,#FFE3CC 100%);">
-
-  <!-- bg decorative blobs -->
-  <div style="position:absolute;width:320px;height:320px;border-radius:50%;
-              background:radial-gradient(circle,rgba(255,102,33,0.10) 0%,transparent 70%);
-              top:-80px;right:-80px;pointer-events:none;"></div>
-  <div style="position:absolute;width:240px;height:240px;border-radius:50%;
-              background:radial-gradient(circle,rgba(255,102,33,0.07) 0%,transparent 70%);
-              bottom:-60px;left:-60px;pointer-events:none;"></div>
 
   <div class="login-wrap">
 
@@ -1098,41 +2018,44 @@
       </div>
 
       <div class="login-brand-title"><span>SFD</span> Rider Hub</div>
-      <div class="login-brand-sub">Welcome back! Sign in to continue.</div>
+      <div class="login-brand-sub">Sign in with your mobile number.</div>
 
       <!-- Card -->
       <div class="login-card">
 
         <div class="field-group">
           <div class="field-label">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            Rider ID / Phone Number
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Mobile Number
           </div>
-          <input type="text" class="field-input" id="riderIdInput"
-                 placeholder="e.g. SFD-001 or 09XXXXXXXXX"
-                 autocomplete="off" translate="no" spellcheck="false">
+          <div class="mobile-prefix-row">
+            <div class="mobile-prefix-chip notranslate">+63</div>
+            <input type="tel" class="field-input" id="mobileInput" style="flex:1;"
+                   placeholder="9XXXXXXXXX" maxlength="11"
+                   autocomplete="off" translate="no" spellcheck="false" inputmode="numeric">
+          </div>
         </div>
 
         <div class="field-group">
           <div class="field-label">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             Full Name
-            <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-sub);">(optional for new)</span>
+            <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-2);">(only needed the first time)</span>
           </div>
           <input type="text" class="field-input" id="riderNameInput"
                  placeholder="Type your full name"
                  autocomplete="off" translate="no" spellcheck="false">
         </div>
 
-        <button class="btn btn-primary" onclick="loginRider()" style="margin-top:4px;">
+        <button class="btn btn-primary" onclick="requestOtp()" id="sendOtpBtn" style="margin-top:4px;">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-          Enter Application
+          Send Code
         </button>
 
-        <div id="loginStatus" class="status-msg st-default" style="display:none;"></div>
+        <div id="phoneStatus" class="status-msg st-default" style="display:none;"></div>
 
         <div style="display:flex;align-items:center;justify-content:center;gap:6px;
-                    margin-top:20px;color:var(--text-sub);font-size:12px;font-weight:500;">
+                    margin-top:20px;color:var(--text-2);font-size:12px;font-weight:500;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
           </svg>
@@ -1141,7 +2064,60 @@
       </div>
 
   </div>
-</div><!-- /loginPage -->
+</div><!-- /phoneEntryPage -->
+
+
+<!-- ╔══════════════════════════════════════════════╗
+     ║  OTP VERIFY PAGE                             ║
+     ╚══════════════════════════════════════════════╝ -->
+<div id="otpVerifyPage" class="page" style="display:none; transform:translateX(100%); opacity:0;
+            align-items:center; justify-content:center;
+            padding:32px 20px; overflow-y:auto;
+            background:linear-gradient(175deg,#FFFAF7 0%,#FFF0E5 45%,#FFE3CC 100%);">
+
+  <div class="login-wrap">
+
+    <div class="otp-back-row">
+      <button class="back-btn" onclick="goBack()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+    </div>
+
+    <div class="login-card" style="width:100%;">
+      <div class="login-brand-title" style="font-size:20px;">Enter Code</div>
+      <div class="login-brand-sub" style="margin-bottom:20px;">
+        We sent a 6-digit code to <span id="otpMobileLabel" class="notranslate" style="font-weight:700;color:var(--text);">—</span>
+      </div>
+
+      <div id="devOtpBanner" class="dev-otp-banner" style="display:none;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span id="devOtpText" class="notranslate">Dev mode — code shown here until SMS is wired up.</span>
+      </div>
+
+      <div class="otp-digits-row">
+        <input type="tel" maxlength="1" class="otp-digit" data-idx="0" inputmode="numeric">
+        <input type="tel" maxlength="1" class="otp-digit" data-idx="1" inputmode="numeric">
+        <input type="tel" maxlength="1" class="otp-digit" data-idx="2" inputmode="numeric">
+        <input type="tel" maxlength="1" class="otp-digit" data-idx="3" inputmode="numeric">
+        <input type="tel" maxlength="1" class="otp-digit" data-idx="4" inputmode="numeric">
+        <input type="tel" maxlength="1" class="otp-digit" data-idx="5" inputmode="numeric">
+      </div>
+
+      <div class="otp-meta-row">
+        <span class="otp-mobile-display notranslate" id="otpTimerLabel">Code expires in 5:00</span>
+        <button class="otp-resend-btn notranslate" id="resendBtn" onclick="requestOtp(true)">Resend Code</button>
+      </div>
+
+      <button class="btn btn-primary" onclick="verifyOtp()">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Verify &amp; Continue
+      </button>
+
+      <div id="otpStatus" class="status-msg st-default" style="display:none;"></div>
+    </div>
+
+  </div>
+</div><!-- /otpVerifyPage -->
 
 
 <!-- ╔══════════════════════════════════════════════╗
@@ -1183,7 +2159,7 @@
   </div>
 
   <!-- Scroll body -->
-  <div class="pg-body">
+  <div class="pg-body pg-body-tabbed">
 
     <!-- User section -->
     <div class="user-section">
@@ -1269,8 +2245,276 @@
       </div>
 
     </div><!-- /cards-wrap -->
+
+    <!-- Nearby Sellers -->
+    <div style="padding:0 16px;">
+      <div class="section-heading-row">
+        <div class="section-heading notranslate">Nearby Sellers</div>
+        <button class="section-heading-link notranslate" onclick="switchTab('liveMapPage')">View Map</button>
+      </div>
+      <div id="nearbySellersList">
+        <div class="empty-state" style="padding:20px;">
+          <p class="notranslate" style="font-size:13px;">Enable location to see sellers near you</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recently Viewed -->
+    <div style="padding:8px 16px 4px;" id="recentlyViewedWrap">
+      <div class="section-heading-row">
+        <div class="section-heading notranslate">Recently Viewed</div>
+      </div>
+      <div class="recent-strip" id="recentlyViewedStrip"></div>
+    </div>
+
   </div><!-- /pg-body -->
 </div><!-- /homePage -->
+
+
+<!-- ╔══════════════════════════════════════════════╗
+     ║  LIVE MAP TAB                                ║
+     ╚══════════════════════════════════════════════╝ -->
+<div id="liveMapPage" class="page" style="display:none;">
+
+  <div class="map-tab-header">
+    <div class="map-tab-title notranslate">Live Map</div>
+    <div class="map-legend-row">
+      <span class="vchip vchip-verified notranslate"><span class="vchip-dot"></span>Verified</span>
+      <span class="vchip vchip-pending notranslate"><span class="vchip-dot"></span>Needs Verification</span>
+      <span class="vchip vchip-reported notranslate"><span class="vchip-dot"></span>Reported Incorrect</span>
+    </div>
+  </div>
+
+  <div class="pg-body">
+    <div id="mapCanvasWrap">
+      <div id="liveMapCanvas"></div>
+      <div class="map-loading-overlay" id="mapLoadingOverlay">
+        <div class="dot-loader" style="color:var(--orange);"><span></span><span></span><span></span></div>
+        <span class="notranslate" style="font-size:13px;color:var(--text-2);font-weight:600;">Loading map…</span>
+      </div>
+      <button class="map-fab" onclick="recenterMap()" aria-label="Recenter">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div><!-- /liveMapPage -->
+
+
+<!-- ╔══════════════════════════════════════════════╗
+     ║  CONTRIBUTIONS TAB                           ║
+     ╚══════════════════════════════════════════════╝ -->
+<div id="contributionsPage" class="page" style="display:none;">
+
+  <div class="app-header" style="justify-content:center;">
+    <div class="hdr-logo-text notranslate" style="position:static;transform:none;font-size:17px;">Contributions</div>
+  </div>
+
+  <div class="pg-body pg-body-tabbed">
+    <div class="pg-content">
+
+      <div class="contrib-stats-row">
+        <div class="contrib-stat-card">
+          <div class="contrib-stat-value notranslate" id="contribTotalEncoded">0</div>
+          <div class="contrib-stat-label notranslate">Sellers Encoded</div>
+        </div>
+        <div class="contrib-stat-card">
+          <div class="contrib-stat-value notranslate" id="contribCreditsEarned">0</div>
+          <div class="contrib-stat-label notranslate">Credits Earned</div>
+        </div>
+      </div>
+
+      <div class="section-heading-row" style="padding:0 0 10px;">
+        <div class="section-heading notranslate">Your Recent Contributions</div>
+      </div>
+
+      <div id="contribList">
+        <div class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+            <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+          </svg>
+          <p class="notranslate">No contributions yet</p>
+          <p class="empty-sub notranslate">Encode a seller to see it here</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div><!-- /contributionsPage -->
+
+
+<!-- ╔══════════════════════════════════════════════╗
+     ║  PROFILE TAB                                 ║
+     ╚══════════════════════════════════════════════╝ -->
+<div id="profilePage" class="page" style="display:none;">
+
+  <div class="pg-body pg-body-tabbed">
+
+    <div class="profile-hero">
+      <div class="profile-avatar notranslate" id="profileAvatarInitial">R</div>
+      <div class="profile-name notranslate" id="profileName">—</div>
+      <div class="profile-mobile notranslate" id="profileMobile">—</div>
+      <div class="profile-role-badge notranslate" id="profileRoleBadge">Rider</div>
+    </div>
+
+    <div class="pg-content">
+      <div class="section-card">
+        <div class="profile-info-row">
+          <div class="profile-info-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            <span class="notranslate">Credits</span>
+          </div>
+          <div class="profile-info-value notranslate" id="profileCredits">0</div>
+        </div>
+        <div class="profile-info-row">
+          <div class="profile-info-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="notranslate">Member Since</span>
+          </div>
+          <div class="profile-info-value notranslate" id="profileMemberSince">—</div>
+        </div>
+      </div>
+
+      <div id="profileToolsSection" style="display:none;">
+        <div class="section-heading-row" style="padding:18px 0 10px;">
+          <div class="section-heading notranslate">Tools</div>
+        </div>
+        <button type="button" class="tool-link-row notranslate" id="profileModToolsBtn" onclick="openModerationTools()" style="display:none;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          Moderator Tools
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <button type="button" class="tool-link-row notranslate" id="profileAdminToolsBtn" onclick="openAdminDashboard()" style="display:none;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
+          Admin Dashboard
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <button class="btn-logout notranslate" onclick="logoutRider()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Log Out
+      </button>
+
+      <div class="app-version-footer notranslate">SFD Rider Hub — Seller Locator · Foundation build</div>
+    </div>
+  </div>
+</div><!-- /profilePage -->
+
+
+<!-- ╔══════════════════════════════════════════════╗
+     ║  MODERATION PAGE (Phase 4)                   ║
+     ╚══════════════════════════════════════════════╝ -->
+<div id="moderationPage" class="page" style="display:none; transform:translateX(100%); opacity:0;">
+
+  <div class="sub-header">
+    <button class="back-btn" onclick="goBack()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="sub-header-title notranslate">Moderator Tools</div>
+  </div>
+
+  <div class="mod-tab-strip">
+    <button type="button" class="mod-tab active notranslate" data-modtab="pending" onclick="switchModTab('pending')">Pending</button>
+    <button type="button" class="mod-tab notranslate" data-modtab="reported" onclick="switchModTab('reported')">Reported</button>
+    <button type="button" class="mod-tab notranslate" data-modtab="corrections" onclick="switchModTab('corrections')">Pin Moves</button>
+    <button type="button" class="mod-tab notranslate" data-modtab="merge" onclick="switchModTab('merge')">Merge</button>
+  </div>
+
+  <div class="pg-body">
+    <div class="pg-content">
+
+      <div id="modPendingSection" class="mod-section"></div>
+
+      <div id="modReportedSection" class="mod-section" style="display:none;"></div>
+
+      <div id="modCorrectionsSection" class="mod-section" style="display:none;"></div>
+
+      <div id="modMergeSection" class="mod-section" style="display:none;">
+        <div class="field-group">
+          <div class="field-label notranslate">Seller to Keep (Primary)</div>
+          <input type="text" class="field-input" id="mergePrimarySearch"
+                 placeholder="Search seller name…" autocomplete="off" translate="no" spellcheck="false">
+          <div id="mergePrimaryResults" class="merge-search-results"></div>
+          <div id="mergePrimarySelected" class="merge-selected-chip" style="display:none;"></div>
+        </div>
+        <div class="field-group">
+          <div class="field-label notranslate">Duplicate to Merge &amp; Retire</div>
+          <input type="text" class="field-input" id="mergeDupSearch"
+                 placeholder="Search seller name…" autocomplete="off" translate="no" spellcheck="false">
+          <div id="mergeDupResults" class="merge-search-results"></div>
+          <div id="mergeDupSelected" class="merge-selected-chip" style="display:none;"></div>
+        </div>
+        <button type="button" class="btn btn-primary notranslate" onclick="submitMergeSellers()">Merge Sellers</button>
+        <div id="mergeStatus" class="status-msg st-default" style="display:none;"></div>
+      </div>
+
+    </div>
+  </div>
+</div><!-- /moderationPage -->
+
+
+<!-- ╔══════════════════════════════════════════════╗
+     ║  ADMIN DASHBOARD PAGE (Phase 4)              ║
+     ╚══════════════════════════════════════════════╝ -->
+<div id="adminPage" class="page" style="display:none; transform:translateX(100%); opacity:0;">
+
+  <div class="sub-header">
+    <button class="back-btn" onclick="goBack()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="sub-header-title notranslate">Admin Dashboard</div>
+  </div>
+
+  <div class="mod-tab-strip">
+    <button type="button" class="mod-tab active notranslate" data-admintab="analytics" onclick="switchAdminTab('analytics')">Analytics</button>
+    <button type="button" class="mod-tab notranslate" data-admintab="users" onclick="switchAdminTab('users')">Users</button>
+  </div>
+
+  <div class="pg-body">
+    <div class="pg-content">
+
+      <div id="adminAnalyticsSection">
+        <div class="contrib-stats-row">
+          <div class="contrib-stat-card">
+            <div class="contrib-stat-value notranslate" id="analyticsTotalSellers">—</div>
+            <div class="contrib-stat-label notranslate">Total Sellers</div>
+          </div>
+          <div class="contrib-stat-card">
+            <div class="contrib-stat-value notranslate" id="analyticsTotalRiders">—</div>
+            <div class="contrib-stat-label notranslate">Total Riders</div>
+          </div>
+        </div>
+
+        <div class="admin-stat-list" id="analyticsBreakdown"></div>
+
+        <div class="section-heading-row" style="padding:0 0 10px;">
+          <div class="section-heading notranslate">Top Contributors</div>
+        </div>
+        <div id="analyticsTopContributors"></div>
+
+        <div class="section-heading-row" style="padding:18px 0 10px;">
+          <div class="section-heading notranslate">Verification Thresholds</div>
+        </div>
+        <div class="admin-stat-list" id="analyticsThresholds"></div>
+        <p class="notranslate" style="font-size:11.5px;color:var(--text-2);margin:-6px 0 0;">
+          Read-only — set in the Phase 2 SQL functions, not editable here yet.
+        </p>
+      </div>
+
+      <div id="adminUsersSection" style="display:none;">
+        <div class="field-group">
+          <input type="text" class="field-input" id="adminUserSearch"
+                 placeholder="Search by name or mobile number…"
+                 autocomplete="off" translate="no" spellcheck="false">
+        </div>
+        <div id="adminUsersList"></div>
+      </div>
+
+    </div>
+  </div>
+</div><!-- /adminPage -->
 
 
 <!-- ╔══════════════════════════════════════════════╗
@@ -1368,6 +2612,15 @@
           <span class="notranslate">Get My Location</span>
         </button>
 
+        <div id="encodePinMapWrap" style="display:none; margin-bottom:14px;">
+          <div class="field-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="notranslate">Confirm Exact Pin</span>
+            <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-2);">(drag to adjust)</span>
+          </div>
+          <div id="encodePinMap" class="encode-pin-map"></div>
+        </div>
+
         <div class="coords-row">
           <div class="field-group" style="margin-bottom:0;">
             <div class="field-label">
@@ -1389,9 +2642,36 @@
           </div>
         </div>
 
+        <div class="field-group" style="margin-top:14px;">
+          <div class="field-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="notranslate">Landmark Note</span>
+          </div>
+          <input type="text" class="field-input" id="encodeLandmark" maxlength="60"
+                 placeholder="e.g. Blue gate, beside 7-Eleven"
+                 autocomplete="off" translate="no" spellcheck="false">
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span class="notranslate">Store Photo</span>
+            <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-2);">(at least 1)</span>
+          </div>
+          <div class="photo-type-row">
+            <button type="button" class="photo-type-chip notranslate" onclick="pickEncodePhoto('storefront')">Store Front</button>
+            <button type="button" class="photo-type-chip notranslate" onclick="pickEncodePhoto('gate')">Gate</button>
+            <button type="button" class="photo-type-chip notranslate" onclick="pickEncodePhoto('entrance')">Entrance</button>
+            <button type="button" class="photo-type-chip notranslate" onclick="pickEncodePhoto('building')">Building</button>
+            <button type="button" class="photo-type-chip notranslate" onclick="pickEncodePhoto('signboard')">Signboard</button>
+          </div>
+          <div class="photo-thumb-strip" id="encodePhotoStrip"></div>
+          <input type="file" id="encodePhotoFileInput" accept="image/*" capture="environment" style="display:none">
+        </div>
+
         <div class="divider"></div>
 
-        <button class="btn btn-green-solid" onclick="saveToDatabase()">
+        <button class="btn btn-green-solid" onclick="submitEncodeSeller()">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/>
@@ -1439,6 +2719,37 @@
 
 
 <!-- ════════════════════════════════════════════════
+     BOTTOM NAVIGATION
+════════════════════════════════════════════════ -->
+<nav class="bottom-nav" id="bottomNav" style="display:none;">
+  <button class="nav-item active" data-tab="homePage" onclick="switchTab('homePage')">
+    <span class="nav-icon-slot">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </span>
+    <span class="nav-label notranslate">Home</span>
+  </button>
+  <button class="nav-item" data-tab="liveMapPage" onclick="switchTab('liveMapPage')">
+    <span class="nav-icon-slot">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+    </span>
+    <span class="nav-label notranslate">Live Map</span>
+  </button>
+  <button class="nav-item" data-tab="contributionsPage" onclick="switchTab('contributionsPage')">
+    <span class="nav-icon-slot">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    </span>
+    <span class="nav-label notranslate">Contributions</span>
+  </button>
+  <button class="nav-item" data-tab="profilePage" onclick="switchTab('profilePage')">
+    <span class="nav-icon-slot">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </span>
+    <span class="nav-label notranslate">Profile</span>
+  </button>
+</nav>
+
+
+<!-- ════════════════════════════════════════════════
      SUCCESS MODAL
 ════════════════════════════════════════════════ -->
 <div id="successModal" class="modal">
@@ -1474,13 +2785,194 @@
 
 
 <!-- ════════════════════════════════════════════════
+     SELLER BOTTOM SHEET (Phase 2)
+════════════════════════════════════════════════ -->
+<div id="sheetScrim" class="sheet-scrim" onclick="closeSellerSheet()"></div>
+
+<div id="sellerSheet" class="seller-sheet">
+  <div class="sheet-handle-row" onclick="closeSellerSheet()">
+    <div class="sheet-handle"></div>
+  </div>
+
+  <div class="sheet-scroll">
+    <div class="sheet-header-row">
+      <div class="sheet-seller-name notranslate" id="sheetSellerName">—</div>
+      <span id="sheetVChip"></span>
+    </div>
+
+    <div class="sheet-meta-row notranslate" id="sheetMetaRow">—</div>
+
+    <div class="sheet-landmark-row notranslate" id="sheetLandmarkRow" style="display:none;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="flex-shrink:0;"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span id="sheetLandmarkText"></span>
+    </div>
+
+    <div class="sheet-action-row">
+      <button class="sheet-btn sheet-btn-navigate" id="sheetNavigateBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        Navigate
+      </button>
+      <button class="sheet-btn sheet-btn-waze" id="sheetWazeBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="8.5" cy="10.5" r="1"/><circle cx="15.5" cy="10.5" r="1"/><path d="M8 15c1 1 2 1.5 4 1.5s3-.5 4-1.5"/></svg>
+        Waze
+      </button>
+    </div>
+
+    <div class="sheet-action-row">
+      <button class="sheet-btn sheet-btn-confirm" id="sheetConfirmBtn" onclick="submitSellerVote('confirm')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Confirm Location
+      </button>
+      <button class="sheet-btn sheet-btn-report" id="sheetReportBtn" onclick="submitSellerVote('report')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Report Wrong
+      </button>
+    </div>
+
+    <button type="button" class="sheet-btn sheet-btn-waze notranslate" id="sheetMovePinBtn" onclick="openCorrectionModal()" style="width:100%; margin-top:10px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Move Incorrect Pin
+    </button>
+
+    <div id="sheetVoteStatus" class="status-msg st-default sheet-status-msg" style="display:none;"></div>
+
+    <div class="sheet-toggle-row">
+      <button class="sheet-toggle-btn notranslate" id="sheetPhotosToggle" onclick="toggleSheetPanel('photos')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        View Photos
+      </button>
+      <button class="sheet-toggle-btn notranslate" id="sheetNotesToggle" onclick="toggleSheetPanel('notes')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        View Notes
+      </button>
+    </div>
+
+    <div class="sheet-panel" id="sheetPhotosPanel">
+      <div id="sheetPhotosContent" class="notranslate" style="font-size:13px;color:var(--text-2);">Loading…</div>
+      <input type="file" id="sheetPhotoFileInput" accept="image/*" capture="environment" style="display:none">
+    </div>
+
+    <div class="sheet-panel" id="sheetNotesPanel">
+      <div id="sheetNotesContent" class="notranslate" style="font-size:13px;color:var(--text-2);">Loading…</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     DUPLICATE-CHECK MODAL (Phase 3)
+════════════════════════════════════════════════ -->
+<div id="dupScrim" class="sheet-scrim" onclick="closeDuplicateModal()"></div>
+
+<div id="duplicateModal" class="dup-modal">
+  <div class="dup-modal-header">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <div class="dup-modal-title notranslate">Possible Duplicate Found</div>
+  </div>
+  <div class="dup-modal-sub notranslate">This looks similar to a seller already nearby. Is it the same shop?</div>
+  <div id="dupCandidateList" class="dup-candidate-list"></div>
+  <button type="button" class="btn btn-outline-blue notranslate" onclick="proceedCreateNewSeller()" style="margin-top:14px;">
+    None of these — Create New Seller
+  </button>
+  <button type="button" class="btn-text-cancel notranslate" onclick="closeDuplicateModal()">Cancel</button>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     LOCATION CORRECTION MODAL — "Move Incorrect Pin" (Phase 4)
+════════════════════════════════════════════════ -->
+<div id="correctionScrim" class="sheet-scrim" onclick="closeCorrectionModal()"></div>
+
+<div id="correctionModal" class="dup-modal">
+  <div class="dup-modal-header" style="color:var(--orange);">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+    <div class="dup-modal-title notranslate">Move Incorrect Pin</div>
+  </div>
+  <div class="dup-modal-sub notranslate">Drag the pin to the correct spot. A moderator will review this before it goes live.</div>
+  <div id="correctionPinMap" class="encode-pin-map" style="height:190px;"></div>
+  <div class="field-group" style="margin-top:12px; margin-bottom:0;">
+    <input type="text" class="field-input" id="correctionReasonInput" maxlength="80"
+           placeholder="Optional — why is this wrong? (e.g. store moved)"
+           autocomplete="off" translate="no" spellcheck="false">
+  </div>
+  <button type="button" class="btn btn-primary notranslate" onclick="submitCorrection()" style="margin-top:14px;">Submit for Review</button>
+  <button type="button" class="btn-text-cancel notranslate" onclick="closeCorrectionModal()">Cancel</button>
+  <div id="correctionStatus" class="status-msg st-default sheet-status-msg" style="display:none;"></div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     GEOFENCE "SELLER NEARBY" ALERT (Phase 3)
+════════════════════════════════════════════════ -->
+<div id="geofenceAlertCard" class="geofence-alert">
+  <div class="geofence-alert-top">
+    <div class="geofence-alert-icon">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+    </div>
+    <div>
+      <div class="geofence-alert-title notranslate">Seller Nearby</div>
+      <div class="geofence-alert-name notranslate" id="geofenceAlertName">—</div>
+    </div>
+  </div>
+  <div class="geofence-alert-dist notranslate" id="geofenceAlertDist">—</div>
+  <div class="geofence-alert-actions">
+    <button type="button" class="geofence-btn geofence-btn-open notranslate" id="geofenceOpenBtn">Open</button>
+    <button type="button" class="geofence-btn geofence-btn-ignore notranslate" id="geofenceIgnoreBtn">Ignore</button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
      JAVASCRIPT — ALL ORIGINAL LOGIC PRESERVED
 ════════════════════════════════════════════════ -->
 <script>
 
 /* ── STATE ─────────────────────────────────────── */
 let currentRiderId = "";
+let currentRider   = null;
 let allSellersData = [];
+
+const SESSION_KEY  = 'sfd_session_token_v1';
+const REFRESH_KEY  = 'sfd_refresh_token_v1';
+const DEVICE_KEY    = 'sfd_device_uuid_v1';
+const TAB_PAGES     = ['homePage', 'liveMapPage', 'contributionsPage', 'profilePage'];
+let currentTab      = 'homePage';
+let pendingOtpMobile = "";
+let otpCooldownTimer = null;
+let otpExpiryTimer   = null;
+
+function authHeaders() {
+  const token = localStorage.getItem(SESSION_KEY);
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+/**
+ * A browser has no access to a real hardware/Android device ID —
+ * that's a native-only API. This generated UUID, persisted in
+ * localStorage, is the actual trust anchor for "this device": it
+ * survives app restarts and force-closes exactly like a native
+ * device ID would, but — unlike a real hardware ID — it resets if
+ * the person clears site data or switches browsers. That's an
+ * inherent, honest limitation of a web app, not a bug.
+ */
+function getOrCreateDeviceUuid() {
+  let id = localStorage.getItem(DEVICE_KEY);
+  if (id) return id;
+
+  id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+
+  localStorage.setItem(DEVICE_KEY, id);
+  return id;
+}
+
+function getDeviceModel() {
+  return (navigator.userAgent || 'Unknown device').slice(0, 200);
+}
 
 /* ════════════════════════════════════════════════
    PAGE STACK NAVIGATION
@@ -1488,7 +2980,7 @@ let allSellersData = [];
 const EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 const DUR    = '290ms';
 
-const pageStack = ['loginPage'];
+const pageStack = ['phoneEntryPage'];
 
 /**
  * Navigate forward — slide new page in from right.
@@ -1521,6 +3013,7 @@ function goTo(pageId) {
   nextEl.style.opacity    = '1';
 
   pageStack.push(pageId);
+  updateNavVisibility();
 
   /* Hide previous after animation */
   setTimeout(() => {
@@ -1541,6 +3034,7 @@ function goBack() {
 
   const curId  = pageStack.pop();
   const prevId = pageStack[pageStack.length - 1];
+  updateNavVisibility();
 
   const curEl  = document.getElementById(curId);
   const prevEl = document.getElementById(prevId);
@@ -1575,17 +3069,19 @@ function goBack() {
 }
 
 /**
- * Special login → home transition (fade + slide up).
+ * Special auth → home transition (fade + slide up). Works from
+ * whichever auth screen is currently on top of the stack.
  */
 function showHome() {
-  const loginEl = document.getElementById('loginPage');
-  const homeEl  = document.getElementById('homePage');
+  const authId = pageStack[pageStack.length - 1];
+  const authEl = document.getElementById(authId);
+  const homeEl = document.getElementById('homePage');
 
-  /* Animate login out */
-  loginEl.style.transition = `opacity 0.32s ease, transform 0.32s ease`;
-  loginEl.style.opacity    = '0';
-  loginEl.style.transform  = 'scale(0.96) translateY(-12px)';
-  loginEl.style.pointerEvents = 'none';
+  /* Animate auth screen out */
+  authEl.style.transition = `opacity 0.32s ease, transform 0.32s ease`;
+  authEl.style.opacity    = '0';
+  authEl.style.transform  = 'scale(0.96) translateY(-12px)';
+  authEl.style.pointerEvents = 'none';
 
   /* Show home rising up */
   homeEl.style.display    = 'flex';
@@ -1599,18 +3095,121 @@ function showHome() {
   homeEl.style.transform  = 'translateY(0)';
 
   pageStack.splice(0, pageStack.length, 'homePage');
+  currentTab = 'homePage';
+  updateBottomNavActive('homePage');
+  updateNavVisibility();
 
   setTimeout(() => {
-    loginEl.style.display = 'none';
-    loginEl.style.transition = 'none';
+    authEl.style.display = 'none';
+    authEl.style.transition = 'none';
     homeEl.style.transition  = 'none';
+    /* reset auth screen back to its normal state for next logout/login */
+    authEl.style.opacity = '';
+    authEl.style.transform = '';
+    authEl.style.pointerEvents = '';
   }, 520);
+
+  loadSellerNames();
+  loadNearbySellers();
+  renderRecentlyViewed();
+  startGlobalLocationWatch();
 }
 
 /* Placeholder for hamburger menu */
 function openMenu() {
   console.log('[SFD] Hamburger menu tapped');
 }
+
+/* ════════════════════════════════════════════════
+   BOTTOM-NAV TAB SWITCHING
+   ── Home / Live Map / Contributions / Profile are peers,
+      switched with a cross-fade and no back-stack entry
+      between them. Only reachable when no sub-page (find/
+      encode/notifications) is pushed on top — the nav bar
+      is hidden in that case anyway.
+════════════════════════════════════════════════ */
+function switchTab(tabId) {
+  if (pageStack.length > 1 || currentTab === tabId) return;
+  if (!TAB_PAGES.includes(tabId)) return;
+
+  const curEl  = document.getElementById(currentTab);
+  const nextEl = document.getElementById(tabId);
+
+  nextEl.style.display    = 'flex';
+  nextEl.style.opacity    = '0';
+  nextEl.style.transition = 'none';
+  nextEl.getBoundingClientRect();
+
+  curEl.style.transition  = 'opacity 0.16s ease';
+  nextEl.style.transition = 'opacity 0.22s ease';
+  curEl.style.opacity     = '0';
+  nextEl.style.opacity    = '1';
+
+  setTimeout(() => {
+    curEl.style.display    = 'none';
+    curEl.style.transition = 'none';
+  }, 200);
+
+  currentTab      = tabId;
+  pageStack[0]    = tabId;
+  updateBottomNavActive(tabId);
+
+  if (tabId === 'liveMapPage')       ensureLiveMapLoaded();
+  if (tabId === 'contributionsPage') loadContributions();
+  if (tabId === 'profilePage')       loadProfileInfo();
+  if (tabId === 'homePage')          { loadNearbySellers(); renderRecentlyViewed(); }
+}
+
+function updateBottomNavActive(tabId) {
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+}
+
+/**
+ * Bottom nav is only visible while sitting at a tab root (nothing
+ * pushed on top) AND the rider is signed in.
+ */
+function updateNavVisibility() {
+  const nav = document.getElementById('bottomNav');
+  if (!nav) return;
+  const atRoot = pageStack.length === 1 && TAB_PAGES.includes(pageStack[0]);
+  nav.style.display = atRoot ? 'flex' : 'none';
+}
+
+/* ════════════════════════════════════════════════
+   ANDROID BACK BUTTON GUARD
+   ── Traps the hardware/gesture back action so it navigates
+      within the app (closing a sub-page, or returning to the
+      Home tab) instead of exiting the app or dropping the
+      session. Once there's nothing left to pop, we stop
+      re-priming the buffer so the *next* back press falls
+      through to the OS/WebView's own behavior — which
+      backgrounds an installed PWA/TWA instead of hard-exiting.
+      (A bare browser tab will still eventually close on repeated
+      back presses — that's normal browser behavior outside an
+      installed app shell.)
+════════════════════════════════════════════════ */
+const BACK_GUARD_DEPTH = 2;
+
+function primeBackGuard() {
+  for (let i = 0; i < BACK_GUARD_DEPTH; i++) {
+    history.pushState({ sfdGuard: true }, '', location.href);
+  }
+}
+
+window.addEventListener('popstate', () => {
+  if (pageStack.length > 1) {
+    goBack();
+    history.pushState({ sfdGuard: true }, '', location.href);
+  } else if (currentTab !== 'homePage' && TAB_PAGES.includes(pageStack[0])) {
+    switchTab('homePage');
+    history.pushState({ sfdGuard: true }, '', location.href);
+  } else {
+    /* At the Home tab root with nothing to pop — let the buffer
+       drain so native back/minimize behavior can take over. */
+  }
+});
 
 /* ════════════════════════════════════════════════
    GREETING
@@ -1655,6 +3254,10 @@ function updateCreditUI(credits) {
   const badgeEl = document.getElementById('creditsBadge');
   if (numEl)   numEl.textContent = credits;
   if (badgeEl) badgeEl.className = 'credits-badge' + (credits <= 0 ? ' low' : '');
+
+  if (currentRider) currentRider.credits = credits;
+  const profileCreditsEl = document.getElementById('profileCredits');
+  if (profileCreditsEl) profileCreditsEl.textContent = credits;
 }
 
 function getDistanceKm(lat1, lon1, lat2, lon2) {
@@ -1680,42 +3283,1430 @@ async function loadSellerNames() {
 loadSellerNames();
 
 /* ════════════════════════════════════════════════
-   LOGIN
+   SHARED — verification chip + distance formatting
 ════════════════════════════════════════════════ */
-async function loginRider() {
-  const riderId   = document.getElementById('riderIdInput').value.trim();
-  const riderName = document.getElementById('riderNameInput').value.trim();
+function verificationChipHtml(status) {
+  if (status === 'verified') {
+    return `<span class="vchip vchip-verified notranslate"><span class="vchip-dot"></span>Verified</span>`;
+  }
+  if (status === 'reported_incorrect') {
+    return `<span class="vchip vchip-reported notranslate"><span class="vchip-dot"></span>Reported Incorrect</span>`;
+  }
+  return `<span class="vchip vchip-pending notranslate"><span class="vchip-dot"></span>Needs Verification</span>`;
+}
 
-  if (!riderId) {
-    setStatus('loginStatus', 'Please enter your Rider ID.', 'warning');
+function formatDistance(km) {
+  if (isNaN(km)) return '';
+  if (km < 1) return `${Math.round(km * 1000)} m away`;
+  return `${km.toFixed(1)} km away`;
+}
+
+/* ════════════════════════════════════════════════
+   HOME — NEARBY SELLERS
+════════════════════════════════════════════════ */
+function loadNearbySellers() {
+  const container = document.getElementById('nearbySellersList');
+  if (!container) return;
+
+  if (riderLiveLat != null && riderLiveLng != null) {
+    renderNearbySellers(riderLiveLat, riderLiveLng);
+    return;
+  }
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition((position) => {
+    renderNearbySellers(position.coords.latitude, position.coords.longitude);
+  }, () => {
+    container.innerHTML = `<div class="empty-state" style="padding:20px;"><p class="notranslate" style="font-size:13px;">Enable location to see sellers near you</p></div>`;
+  }, { enableHighAccuracy: false, timeout: 8000 });
+}
+
+function renderNearbySellers(riderLat, riderLng) {
+  const container = document.getElementById('nearbySellersList');
+  if (!container) return;
+
+  const withCoords = allSellersData.filter(s => s.latitude != null && s.longitude != null);
+  if (withCoords.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding:20px;"><p class="notranslate" style="font-size:13px;">No sellers encoded yet</p></div>`;
     return;
   }
 
-  setStatus('loginStatus', 'Connecting to server…', 'loading');
+  const nearby = withCoords
+    .map(s => ({ ...s, distanceKm: parseFloat(getDistanceKm(riderLat, riderLng, s.latitude, s.longitude)) }))
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, 5);
+
+  container.innerHTML = nearby.map((s, i) => `
+    <div class="seller-mini-card" data-idx="${i}">
+      <div class="seller-mini-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      </div>
+      <div class="seller-mini-info">
+        <div class="seller-mini-name notranslate">${escapeHtml(s.seller_name)}</div>
+        <div class="seller-mini-meta">
+          <span class="notranslate">${formatDistance(s.distanceKm)}</span>
+          ${verificationChipHtml(s.verification_status)}
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.seller-mini-card').forEach((el, i) => {
+    el.addEventListener('click', () => openSellerSheet(nearby[i]));
+  });
+}
+
+/* ════════════════════════════════════════════════
+   GLOBAL LOCATION WATCH + GEOFENCE ALERTS (Phase 3)
+   ── Runs app-wide (not just on the Live Map tab) so a
+      rider gets a "Seller Nearby" alert whether they're
+      looking at Home, Live Map, or anywhere else. Also
+      feeds the Live Map's blue dot and the bottom sheet's
+      distance display, so there's only ever one GPS watch
+      running at a time.
+════════════════════════════════════════════════ */
+let riderLiveLat  = null;
+let riderLiveLng  = null;
+let globalWatchId = null;
+
+const GEOFENCE_RADIUS_M     = 50;
+const GEOFENCE_RESET_FACTOR = 2.5; // must move this many radii away before re-arming
+
+let geofenceNotifiedIds  = new Set();
+let geofenceAlertQueue   = [];
+let geofenceAlertShowing = false;
+let geofenceAutoDismiss  = null;
+
+function startGlobalLocationWatch() {
+  if (globalWatchId != null || !navigator.geolocation) return;
+  globalWatchId = navigator.geolocation.watchPosition((pos) => {
+    riderLiveLat = pos.coords.latitude;
+    riderLiveLng = pos.coords.longitude;
+    if (liveMapInstance) placeUserMarker(riderLiveLat, riderLiveLng);
+    checkGeofences(riderLiveLat, riderLiveLng);
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 5000 });
+}
+
+function checkGeofences(lat, lng) {
+  if (!allSellersData || allSellersData.length === 0) return;
+
+  allSellersData.forEach(s => {
+    if (s.latitude == null || s.longitude == null) return;
+    const distM = parseFloat(getDistanceKm(lat, lng, s.latitude, s.longitude)) * 1000;
+
+    if (distM <= GEOFENCE_RADIUS_M) {
+      if (!geofenceNotifiedIds.has(s.id)) {
+        geofenceNotifiedIds.add(s.id);
+        queueGeofenceAlert(s, Math.round(distM));
+      }
+    } else if (distM > GEOFENCE_RADIUS_M * GEOFENCE_RESET_FACTOR) {
+      geofenceNotifiedIds.delete(s.id); // left the area — re-arm for next time
+    }
+  });
+}
+
+function queueGeofenceAlert(seller, distM) {
+  geofenceAlertQueue.push({ seller, distM });
+  if (!geofenceAlertShowing) showNextGeofenceAlert();
+}
+
+function showNextGeofenceAlert() {
+  if (geofenceAlertQueue.length === 0) { geofenceAlertShowing = false; return; }
+  geofenceAlertShowing = true;
+
+  const { seller, distM } = geofenceAlertQueue.shift();
+  document.getElementById('geofenceAlertName').textContent = seller.seller_name;
+  document.getElementById('geofenceAlertDist').textContent = `${distM} meters away`;
+
+  document.getElementById('geofenceOpenBtn').onclick = () => {
+    dismissGeofenceAlert();
+    openSellerSheet(seller);
+  };
+  document.getElementById('geofenceIgnoreBtn').onclick = () => dismissGeofenceAlert();
+
+  document.getElementById('geofenceAlertCard').classList.add('show');
+
+  clearTimeout(geofenceAutoDismiss);
+  geofenceAutoDismiss = setTimeout(dismissGeofenceAlert, 10000);
+}
+
+function dismissGeofenceAlert() {
+  document.getElementById('geofenceAlertCard').classList.remove('show');
+  clearTimeout(geofenceAutoDismiss);
+  setTimeout(showNextGeofenceAlert, 380);
+}
+
+/* ════════════════════════════════════════════════
+   HOME — RECENTLY VIEWED (localStorage)
+════════════════════════════════════════════════ */
+const RECENT_KEY = 'sfd_recently_viewed_v1';
+const RECENT_MAX = 10;
+
+function loadRecentlyViewedRaw() {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (e) { return []; }
+}
+
+function addRecentlyViewed(seller) {
+  let list = loadRecentlyViewedRaw();
+  list = list.filter(s => s.seller_name !== seller.seller_name);
+  list.unshift({ id: seller.id, seller_name: seller.seller_name, latitude: seller.latitude, longitude: seller.longitude, verification_status: seller.verification_status });
+  list = list.slice(0, RECENT_MAX);
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) {}
+  renderRecentlyViewed();
+}
+
+function renderRecentlyViewed() {
+  const strip = document.getElementById('recentlyViewedStrip');
+  const wrap  = document.getElementById('recentlyViewedWrap');
+  if (!strip || !wrap) return;
+
+  const list = loadRecentlyViewedRaw();
+  if (list.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+
+  strip.innerHTML = list.map((s, i) => `
+    <div class="recent-chip" data-idx="${i}">
+      <div class="recent-chip-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <span class="recent-chip-name notranslate">${escapeHtml(s.seller_name)}</span>
+    </div>
+  `).join('');
+
+  strip.querySelectorAll('.recent-chip').forEach((el, i) => {
+    el.addEventListener('click', () => openSellerSheet(list[i]));
+  });
+}
+
+/* ════════════════════════════════════════════════
+   LIVE MAP TAB
+   ── Basic version for Phase 1: current-location blue
+      dot + all seller markers, color-coded by verification
+      status. Tapping a marker shows a simple popup. The
+      full bottom-sheet (confirmations, photos, notes,
+      report) lands in Phase 2.
+════════════════════════════════════════════════ */
+let liveMapInstance     = null;
+let liveMapMarkersLayer = null;
+let liveMapUserMarker   = null;
+let liveMapLoaded       = false;
+
+function statusMarkerColor(status) {
+  if (status === 'verified') return '#16A34A';
+  if (status === 'reported_incorrect') return '#DC2626';
+  return '#D97706';
+}
+
+async function ensureLiveMapLoaded() {
+  if (liveMapLoaded) { refreshLiveMapMarkers(); return; }
+
+  if (typeof L === 'undefined') {
+    showMapLoadError('Map library failed to load. Check your internet connection and try again.');
+    return; // don't mark liveMapLoaded — lets a retry attempt this again
+  }
+
+  liveMapLoaded = true;
 
   try {
-    const res  = await fetch('/api/rider-login', {
+    liveMapInstance = L.map('liveMapCanvas', { zoomControl: false });
+    L.control.zoom({ position: 'bottomleft' }).addTo(liveMapInstance);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(liveMapInstance);
+    liveMapInstance.setView([14.5995, 120.9842], 12); // Metro Manila, until GPS resolves
+
+    // Clustering is a nice-to-have — if that CDN specifically failed to
+    // load while core Leaflet succeeded, fall back to plain markers
+    // rather than breaking the whole map.
+    liveMapMarkersLayer = (typeof L.markerClusterGroup === 'function')
+      ? L.markerClusterGroup({
+          maxClusterRadius: 50,
+          spiderfyOnMaxZoom: true,
+          showCoverageOnHover: false,
+          iconCreateFunction: (cluster) => L.divIcon({
+            html: `<div class="sfd-cluster-icon">${cluster.getChildCount()}</div>`,
+            className: '', iconSize: [40, 40]
+          })
+        }).addTo(liveMapInstance)
+      : L.layerGroup().addTo(liveMapInstance);
+
+    if (riderLiveLat != null && riderLiveLng != null) {
+      liveMapInstance.setView([riderLiveLat, riderLiveLng], 15);
+      placeUserMarker(riderLiveLat, riderLiveLng);
+    } else if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        liveMapInstance.setView([pos.coords.latitude, pos.coords.longitude], 15);
+        placeUserMarker(pos.coords.latitude, pos.coords.longitude);
+      }, () => {}, { enableHighAccuracy: true, timeout: 10000 });
+    }
+    startGlobalLocationWatch(); // no-op if already running — keeps the blue dot moving from here on
+
+    await refreshLiveMapMarkers();
+    const overlay = document.getElementById('mapLoadingOverlay');
+    if (overlay) overlay.style.display = 'none';
+
+    setTimeout(() => liveMapInstance.invalidateSize(), 60);
+    setTimeout(() => liveMapInstance.invalidateSize(), 400); // second pass in case the tab-switch animation was still running
+
+  } catch (err) {
+    console.error('Live Map init error:', err);
+    liveMapLoaded = false; // allow retry
+    showMapLoadError('Something went wrong loading the map.');
+  }
+}
+
+function showMapLoadError(message) {
+  const overlay = document.getElementById('mapLoadingOverlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text-2);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span class="notranslate" style="font-size:13px;color:var(--text-2);font-weight:600;max-width:240px;">${message}</span>
+    <button type="button" class="map-error-retry-btn notranslate" onclick="retryLiveMap()">Retry</button>
+  `;
+}
+
+function retryLiveMap() {
+  const overlay = document.getElementById('mapLoadingOverlay');
+  if (overlay) {
+    overlay.innerHTML = `
+      <div class="dot-loader" style="color:var(--orange);"><span></span><span></span><span></span></div>
+      <span class="notranslate" style="font-size:13px;color:var(--text-2);font-weight:600;">Loading map…</span>
+    `;
+  }
+  ensureLiveMapLoaded();
+}
+
+function placeUserMarker(lat, lng) {
+  const icon = L.divIcon({
+    html: `<div style="background:#2563EB;width:14px;height:14px;border-radius:50%;border:2.5px solid white;box-shadow:0 0 10px rgba(37,99,235,0.8);"></div>`,
+    iconSize: [14, 14], iconAnchor: [7, 7], className: ''
+  });
+  if (liveMapUserMarker) {
+    liveMapUserMarker.setLatLng([lat, lng]);
+  } else {
+    liveMapUserMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 })
+      .addTo(liveMapInstance).bindPopup("<span class='notranslate'>You</span>");
+  }
+}
+
+async function refreshLiveMapMarkers() {
+  try {
+    const res = await fetch('/api/sellers/map', { headers: authHeaders() });
+    if (!res.ok) return;
+    const sellers = await res.json();
+
+    liveMapMarkersLayer.clearLayers();
+
+    sellers.forEach(s => {
+      if (s.latitude == null || s.longitude == null) return;
+
+      const color = statusMarkerColor(s.verification_status);
+      const icon = L.divIcon({
+        html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:2.5px solid white;box-shadow:0 0 8px ${color}aa;"></div>`,
+        iconSize: [16, 16], iconAnchor: [8, 8], className: ''
+      });
+
+      L.marker([s.latitude, s.longitude], { icon })
+        .addTo(liveMapMarkersLayer)
+        .on('click', () => openSellerSheet(s));
+    });
+  } catch (e) { /* offline — leave existing markers as-is */ }
+}
+
+function recenterMap() {
+  if (!liveMapInstance) return;
+  if (liveMapUserMarker) {
+    liveMapInstance.setView(liveMapUserMarker.getLatLng(), 15);
+  } else if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition((pos) => {
+      liveMapInstance.setView([pos.coords.latitude, pos.coords.longitude], 15);
+    });
+  }
+}
+
+/* ════════════════════════════════════════════════
+   SELLER BOTTOM SHEET (Phase 2)
+   ── Shared by Live Map markers, Nearby Sellers, and
+      Recently Viewed. Always re-fetches full seller
+      detail on open so confirmation counts / status
+      shown are never stale.
+════════════════════════════════════════════════ */
+let sheetCurrentSeller = null;
+let sheetPhotosLoaded  = false;
+let sheetNotesLoaded   = false;
+let sheetRiderLat      = null;
+let sheetRiderLng      = null;
+
+function updateSheetRiderPosition() {
+  if (riderLiveLat != null && riderLiveLng != null) {
+    sheetRiderLat = riderLiveLat;
+    sheetRiderLng = riderLiveLng;
+    return;
+  }
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition((pos) => {
+      sheetRiderLat = pos.coords.latitude;
+      sheetRiderLng = pos.coords.longitude;
+      if (sheetCurrentSeller) renderSheetDetail(sheetCurrentSeller);
+    }, () => {}, { enableHighAccuracy: false, timeout: 6000 });
+  }
+}
+
+async function openSellerSheet(sellerStub) {
+  if (!sellerStub || sellerStub.id == null) return;
+
+  addRecentlyViewed(sellerStub);
+  updateSheetRiderPosition();
+
+  sheetCurrentSeller = sellerStub;
+  sheetPhotosLoaded  = false;
+  sheetNotesLoaded   = false;
+
+  document.getElementById('sheetSellerName').textContent = sellerStub.seller_name;
+  document.getElementById('sheetVChip').innerHTML = verificationChipHtml(sellerStub.verification_status);
+  document.getElementById('sheetMetaRow').textContent = 'Loading details…';
+  document.getElementById('sheetLandmarkRow').style.display = 'none';
+  document.getElementById('sheetVoteStatus').style.display = 'none';
+  document.getElementById('sheetPhotosPanel').classList.remove('show');
+  document.getElementById('sheetNotesPanel').classList.remove('show');
+  document.getElementById('sheetPhotosToggle').classList.remove('active');
+  document.getElementById('sheetNotesToggle').classList.remove('active');
+  document.getElementById('sheetConfirmBtn').disabled = false;
+  document.getElementById('sheetReportBtn').disabled  = false;
+  document.getElementById('sheetMovePinBtn').disabled = false;
+
+  wireSheetNavButtons(sellerStub);
+  showSheet();
+
+  try {
+    const res = await fetch(`/api/sellers/${sellerStub.id}`, { headers: authHeaders() });
+    if (!res.ok) { document.getElementById('sheetMetaRow').textContent = 'Could not load details.'; return; }
+    const detail = await res.json();
+    sheetCurrentSeller = detail;
+    wireSheetNavButtons(detail);
+    renderSheetDetail(detail);
+  } catch (e) {
+    document.getElementById('sheetMetaRow').textContent = 'Could not load details.';
+  }
+}
+
+function wireSheetNavButtons(seller) {
+  const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${seller.latitude},${seller.longitude}`;
+  const wazeUrl  = `https://waze.com/ul?ll=${seller.latitude},${seller.longitude}&navigate=yes`;
+  document.getElementById('sheetNavigateBtn').onclick = () => window.open(gmapsUrl, '_blank');
+  document.getElementById('sheetWazeBtn').onclick     = () => window.open(wazeUrl, '_blank');
+}
+
+function renderSheetDetail(detail) {
+  document.getElementById('sheetVChip').innerHTML = verificationChipHtml(detail.verification_status);
+
+  if (detail.is_active === false) {
+    document.getElementById('sheetMetaRow').textContent = 'This listing was merged into another seller and is no longer active.';
+    document.getElementById('sheetLandmarkRow').style.display = 'none';
+    document.getElementById('sheetConfirmBtn').disabled = true;
+    document.getElementById('sheetReportBtn').disabled  = true;
+    document.getElementById('sheetMovePinBtn').disabled = true;
+    return;
+  }
+
+  const metaParts = [];
+  if (sheetRiderLat != null && sheetRiderLng != null) {
+    const km = parseFloat(getDistanceKm(sheetRiderLat, sheetRiderLng, detail.latitude, detail.longitude));
+    metaParts.push(formatDistance(km));
+  }
+  const count = detail.confirmation_count || 0;
+  metaParts.push(`${count} confirmation${count === 1 ? '' : 's'}`);
+  if (detail.last_verified_at) {
+    metaParts.push(`Last confirmed ${formatNotifTime(detail.last_verified_at)}`);
+  }
+  document.getElementById('sheetMetaRow').textContent = metaParts.join(' • ');
+
+  const landmarkRow = document.getElementById('sheetLandmarkRow');
+  if (detail.landmark) {
+    document.getElementById('sheetLandmarkText').textContent = detail.landmark;
+    landmarkRow.style.display = 'flex';
+  } else {
+    landmarkRow.style.display = 'none';
+  }
+}
+
+function showSheet() {
+  document.getElementById('sheetScrim').classList.add('show');
+  document.getElementById('sellerSheet').classList.add('show');
+}
+
+function closeSellerSheet() {
+  document.getElementById('sheetScrim').classList.remove('show');
+  document.getElementById('sellerSheet').classList.remove('show');
+}
+
+async function toggleSheetPanel(kind) {
+  const panelId  = kind === 'photos' ? 'sheetPhotosPanel' : 'sheetNotesPanel';
+  const toggleId = kind === 'photos' ? 'sheetPhotosToggle' : 'sheetNotesToggle';
+  const panel    = document.getElementById(panelId);
+  const toggle   = document.getElementById(toggleId);
+
+  const opening = !panel.classList.contains('show');
+  panel.classList.toggle('show', opening);
+  toggle.classList.toggle('active', opening);
+
+  if (!opening || !sheetCurrentSeller) return;
+
+  if (kind === 'photos' && !sheetPhotosLoaded) {
+    sheetPhotosLoaded = true;
+    await loadSheetPhotos(sheetCurrentSeller.id);
+  }
+  if (kind === 'notes' && !sheetNotesLoaded) {
+    sheetNotesLoaded = true;
+    await loadSheetNotes(sheetCurrentSeller.id);
+  }
+}
+
+async function loadSheetPhotos(sellerId) {
+  const el = document.getElementById('sheetPhotosContent');
+  el.innerHTML = 'Loading…';
+  try {
+    const res = await fetch(`/api/sellers/${sellerId}/photos`, { headers: authHeaders() });
+    const photos = res.ok ? await res.json() : [];
+    renderSheetPhotos(photos);
+  } catch (e) {
+    renderSheetPhotos([]);
+  }
+}
+
+function renderSheetPhotos(photos) {
+  const el = document.getElementById('sheetPhotosContent');
+  const stripHtml = photos.length === 0
+    ? `<div class="notranslate" style="margin-bottom:10px;">No photos yet.</div>`
+    : `<div class="sheet-photo-strip" style="margin-bottom:10px;">${photos.map(p => `<img class="sheet-photo-thumb" src="${p.photo_url}" loading="lazy">`).join('')}</div>`;
+
+  el.innerHTML = `
+    ${stripHtml}
+    <div class="photo-type-row">
+      ${Object.keys(PHOTO_TYPE_LABELS).map(t => `
+        <button type="button" class="photo-type-chip small notranslate" data-type="${t}">${photoTypeLabel(t)}</button>
+      `).join('')}
+    </div>
+  `;
+
+  el.querySelectorAll('.photo-type-chip').forEach(chip => {
+    chip.addEventListener('click', () => pickSheetPhoto(chip.dataset.type));
+  });
+}
+
+let sheetPendingPhotoType = null;
+
+function pickSheetPhoto(type) {
+  if (!sheetCurrentSeller) return;
+  sheetPendingPhotoType = type;
+  document.getElementById('sheetPhotoFileInput').click();
+}
+
+async function handleSheetPhotoFile(fileInput) {
+  const file = fileInput.files && fileInput.files[0];
+  fileInput.value = '';
+  if (!file || !sheetPendingPhotoType || !sheetCurrentSeller) return;
+
+  const sellerId = sheetCurrentSeller.id;
+  const el = document.getElementById('sheetPhotosContent');
+  el.innerHTML = 'Uploading photo…';
+
+  try {
+    const dataUrl = await compressImageFile(file);
+    await fetch(`/api/sellers/${sellerId}/photos`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ riderId, riderName })
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ photoType: sheetPendingPhotoType, dataUrl })
+    });
+  } catch (e) { /* best-effort */ }
+
+  sheetPendingPhotoType = null;
+  await loadSheetPhotos(sellerId);
+}
+
+async function loadSheetNotes(sellerId) {
+  const el = document.getElementById('sheetNotesContent');
+  el.innerHTML = 'Loading…';
+  try {
+    const res = await fetch(`/api/sellers/${sellerId}/notes`, { headers: authHeaders() });
+    const notes = res.ok ? await res.json() : [];
+    renderSheetNotes(notes);
+  } catch (e) {
+    renderSheetNotes([]);
+  }
+}
+
+function renderSheetNotes(notes) {
+  const el = document.getElementById('sheetNotesContent');
+  const listHtml = notes.length === 0
+    ? `<div class="notranslate" style="margin-bottom:10px;">No landmark notes yet.</div>`
+    : notes.map(n => `<div class="sheet-note-item notranslate">${escapeHtml(n.note_text)}</div>`).join('');
+
+  el.innerHTML = `
+    ${listHtml}
+    <div class="sheet-add-row">
+      <input type="text" class="field-input" id="sheetNewNoteInput" maxlength="60"
+             placeholder="e.g. Blue gate, beside 7-Eleven" autocomplete="off" translate="no" spellcheck="false">
+      <button type="button" class="sheet-add-btn notranslate" onclick="submitSheetNote()">Add</button>
+    </div>
+  `;
+
+  const input = document.getElementById('sheetNewNoteInput');
+  if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') submitSheetNote(); });
+}
+
+async function submitSheetNote() {
+  const input = document.getElementById('sheetNewNoteInput');
+  const noteText = input.value.trim();
+  if (!noteText || !sheetCurrentSeller) return;
+
+  const sellerId = sheetCurrentSeller.id;
+  input.disabled = true;
+
+  try {
+    await fetch(`/api/sellers/${sellerId}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ noteText })
+    });
+  } catch (e) { /* best-effort */ }
+
+  await loadSheetNotes(sellerId);
+}
+
+async function submitSellerVote(action) {
+  if (!sheetCurrentSeller || sheetCurrentSeller.id == null) return;
+
+  const endpoint = action === 'confirm' ? 'confirm' : 'report';
+  const btn      = document.getElementById(action === 'confirm' ? 'sheetConfirmBtn' : 'sheetReportBtn');
+
+  btn.disabled = true;
+  setStatus('sheetVoteStatus', action === 'confirm' ? 'Confirming…' : 'Reporting…', 'loading');
+
+  try {
+    const res = await fetch(`/api/sellers/${sheetCurrentSeller.id}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() }
     });
     const data = await res.json();
 
-    if (res.ok) {
-      currentRiderId = data.rider_id;
-      document.getElementById('lblRiderName').textContent = data.name;
-      updateCreditUI(data.credits);
-      setGreeting();
-      showHome();
-
-      /* Catch up on any "new seller" alerts missed while offline */
-      syncNotificationsFromServer();
-    } else {
-      setStatus('loginStatus', data.error || 'Server error. Please try again.', 'error');
+    if (!res.ok) {
+      setStatus('sheetVoteStatus', data.error || 'Something went wrong. Please try again.', 'error');
+      btn.disabled = false;
+      return;
     }
-  } catch(e) {
-    setStatus('loginStatus', 'Cannot connect to server. Please try again.', 'error');
+
+    sheetCurrentSeller = data.seller;
+    renderSheetDetail(data.seller);
+    setStatus('sheetVoteStatus', action === 'confirm' ? 'Thanks for confirming!' : 'Thanks — this has been flagged.', 'success');
+
+    /* Reflect the change everywhere else in the app */
+    refreshLiveMapMarkers();
+    loadSellerNames();
+
+  } catch (e) {
+    setStatus('sheetVoteStatus', 'Connection error. Please try again.', 'error');
+    btn.disabled = false;
   }
+}
+
+/* ════════════════════════════════════════════════
+   CONTRIBUTIONS TAB
+════════════════════════════════════════════════ */
+async function loadContributions() {
+  try {
+    const res = await fetch('/api/my-contributions', { headers: authHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    document.getElementById('contribTotalEncoded').textContent  = data.totalEncoded;
+    document.getElementById('contribCreditsEarned').textContent = data.creditsFromEncoding;
+
+    const list = document.getElementById('contribList');
+    if (!data.recent || data.recent.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <p class="notranslate">No contributions yet</p>
+          <p class="empty-sub notranslate">Encode a seller to see it here</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = data.recent.map(s => `
+      <div class="contrib-list-item">
+        <div class="seller-mini-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        </div>
+        <div class="contrib-list-info">
+          <div class="contrib-list-name notranslate">${escapeHtml(s.seller_name)}</div>
+          <div class="contrib-list-date notranslate">${new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+        </div>
+        ${verificationChipHtml(s.verification_status)}
+      </div>
+    `).join('');
+  } catch (e) { /* silent */ }
+}
+
+/* ════════════════════════════════════════════════
+   PROFILE TAB
+════════════════════════════════════════════════ */
+function roleLabel(role) {
+  if (role === 'admin')     return 'Admin';
+  if (role === 'moderator') return 'Moderator';
+  return 'Rider';
+}
+
+function loadProfileInfo() {
+  if (!currentRider) return;
+
+  document.getElementById('profileName').textContent        = currentRider.name || 'Rider';
+  document.getElementById('profileMobile').textContent      = currentRider.mobile_number || currentRider.rider_id || '—';
+  document.getElementById('profileRoleBadge').textContent   = roleLabel(currentRider.role);
+  document.getElementById('profileCredits').textContent     = currentRider.credits ?? 0;
+  document.getElementById('profileAvatarInitial').textContent = (currentRider.name || 'R').trim().charAt(0).toUpperCase();
+
+  if (currentRider.created_at) {
+    document.getElementById('profileMemberSince').textContent = new Date(currentRider.created_at)
+      .toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
+
+  const isMod   = currentRider.role === 'moderator' || currentRider.role === 'admin';
+  const isAdmin = currentRider.role === 'admin';
+  document.getElementById('profileToolsSection').style.display  = (isMod || isAdmin) ? 'block' : 'none';
+  document.getElementById('profileModToolsBtn').style.display   = isMod   ? 'flex' : 'none';
+  document.getElementById('profileAdminToolsBtn').style.display = isAdmin ? 'flex' : 'none';
+}
+
+/* ════════════════════════════════════════════════
+   MODERATION TOOLS (Phase 4)
+════════════════════════════════════════════════ */
+let modTabsLoaded = { pending: false, reported: false, corrections: false };
+
+function openModerationTools() {
+  goTo('moderationPage');
+  if (!modTabsLoaded.pending) { loadModPending(); modTabsLoaded.pending = true; }
+}
+
+function switchModTab(tab) {
+  document.querySelectorAll('.mod-tab[data-modtab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.modtab === tab);
+  });
+  ['Pending', 'Reported', 'Corrections', 'Merge'].forEach(name => {
+    const el = document.getElementById(`mod${name}Section`);
+    if (el) el.style.display = name.toLowerCase() === tab ? 'block' : 'none';
+  });
+
+  if (tab === 'pending'     && !modTabsLoaded.pending)     { loadModPending();     modTabsLoaded.pending = true; }
+  if (tab === 'reported'    && !modTabsLoaded.reported)    { loadModReported();    modTabsLoaded.reported = true; }
+  if (tab === 'corrections' && !modTabsLoaded.corrections) { loadModCorrections(); modTabsLoaded.corrections = true; }
+}
+
+function modEmptyState(message) {
+  return `<div class="empty-state"><p class="notranslate" style="font-size:13px;">${message}</p></div>`;
+}
+
+async function loadModPending() {
+  const el = document.getElementById('modPendingSection');
+  el.innerHTML = modEmptyState('Loading…');
+  try {
+    const res = await fetch('/api/moderation/sellers/pending', { headers: authHeaders() });
+    const sellers = res.ok ? await res.json() : [];
+
+    if (sellers.length === 0) { el.innerHTML = modEmptyState('No sellers awaiting review.'); return; }
+
+    el.innerHTML = sellers.map(s => `
+      <div class="mod-queue-item">
+        <div class="mod-queue-header">
+          <div>
+            <div class="mod-queue-name notranslate">${escapeHtml(s.seller_name)}</div>
+            <div class="mod-queue-meta notranslate">${s.confirmation_count || 0} confirmation(s) · encoded by ${escapeHtml(s.encoded_by || 'unknown')}</div>
+          </div>
+          ${verificationChipHtml(s.verification_status)}
+        </div>
+        <div class="mod-queue-actions">
+          <button type="button" class="mod-btn mod-btn-approve notranslate" onclick="setSellerStatus(${s.id}, 'verified', 'pending')">Verify</button>
+          <button type="button" class="mod-btn mod-btn-reject notranslate" onclick="setSellerStatus(${s.id}, 'reported_incorrect', 'pending')">Reject</button>
+        </div>
+      </div>
+    `).join('');
+
+  } catch (e) {
+    el.innerHTML = modEmptyState('Could not load — check your connection.');
+  }
+}
+
+async function loadModReported() {
+  const el = document.getElementById('modReportedSection');
+  el.innerHTML = modEmptyState('Loading…');
+  try {
+    const res = await fetch('/api/moderation/sellers/reported', { headers: authHeaders() });
+    const sellers = res.ok ? await res.json() : [];
+
+    if (sellers.length === 0) { el.innerHTML = modEmptyState('No reported sellers right now.'); return; }
+
+    el.innerHTML = sellers.map(s => `
+      <div class="mod-queue-item">
+        <div class="mod-queue-header">
+          <div>
+            <div class="mod-queue-name notranslate">${escapeHtml(s.seller_name)}</div>
+            <div class="mod-queue-meta notranslate">${s.report_count || 0} report(s) · ${s.confirmation_count || 0} confirmation(s)</div>
+          </div>
+          ${verificationChipHtml(s.verification_status)}
+        </div>
+        <div class="mod-queue-actions">
+          <button type="button" class="mod-btn mod-btn-approve notranslate" onclick="setSellerStatus(${s.id}, 'verified', 'reported')">Mark OK</button>
+          <button type="button" class="mod-btn mod-btn-neutral notranslate" onclick="setSellerStatus(${s.id}, 'pending', 'reported')">Reset to Pending</button>
+        </div>
+      </div>
+    `).join('');
+
+  } catch (e) {
+    el.innerHTML = modEmptyState('Could not load — check your connection.');
+  }
+}
+
+async function setSellerStatus(sellerId, status, sourceTab) {
+  try {
+    await fetch(`/api/moderation/sellers/${sellerId}/set-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ status })
+    });
+  } catch (e) { /* best-effort */ }
+
+  if (sourceTab === 'pending')  loadModPending();
+  if (sourceTab === 'reported') loadModReported();
+  loadSellerNames(); // keep Home/Live Map in sync
+}
+
+async function loadModCorrections() {
+  const el = document.getElementById('modCorrectionsSection');
+  el.innerHTML = modEmptyState('Loading…');
+  try {
+    const res = await fetch('/api/moderation/corrections', { headers: authHeaders() });
+    const corrections = res.ok ? await res.json() : [];
+
+    if (corrections.length === 0) { el.innerHTML = modEmptyState('No pending pin moves.'); return; }
+
+    el.innerHTML = corrections.map(c => {
+      const currentUrl  = (c.current_lat != null) ? `https://www.google.com/maps?q=${c.current_lat},${c.current_lng}` : null;
+      const proposedUrl = `https://www.google.com/maps?q=${c.proposed_lat},${c.proposed_lng}`;
+      return `
+      <div class="mod-queue-item">
+        <div class="mod-queue-header">
+          <div>
+            <div class="mod-queue-name notranslate">${escapeHtml(c.seller_name)}</div>
+            <div class="mod-queue-meta notranslate">
+              Proposed by ${escapeHtml(c.proposed_by_name)}${c.reason ? ' — ' + escapeHtml(c.reason) : ''}<br>
+              ${currentUrl ? `<a href="${currentUrl}" target="_blank" class="notranslate">Current pin</a> · ` : ''}<a href="${proposedUrl}" target="_blank" class="notranslate">Proposed pin</a>
+            </div>
+          </div>
+        </div>
+        <div class="mod-queue-actions">
+          <button type="button" class="mod-btn mod-btn-approve notranslate" onclick="reviewCorrection(${c.id}, 'approve')">Approve</button>
+          <button type="button" class="mod-btn mod-btn-reject notranslate" onclick="reviewCorrection(${c.id}, 'reject')">Reject</button>
+        </div>
+      </div>
+    `; }).join('');
+
+  } catch (e) {
+    el.innerHTML = modEmptyState('Could not load — check your connection.');
+  }
+}
+
+async function reviewCorrection(correctionId, action) {
+  try {
+    await fetch(`/api/moderation/corrections/${correctionId}/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() }
+    });
+  } catch (e) { /* best-effort */ }
+
+  loadModCorrections();
+  loadSellerNames();
+}
+
+/* ── Merge duplicate sellers — reuses the already-loaded allSellersData,
+      no extra endpoint needed for the search step. ── */
+let mergeSelection = { primary: null, duplicate: null };
+
+function wireMergeSearch() {
+  const primaryInput = document.getElementById('mergePrimarySearch');
+  const dupInput      = document.getElementById('mergeDupSearch');
+  if (primaryInput) primaryInput.addEventListener('input', () => renderMergeSearchResults('primary'));
+  if (dupInput)      dupInput.addEventListener('input', () => renderMergeSearchResults('duplicate'));
+}
+
+function renderMergeSearchResults(which) {
+  const inputId  = which === 'primary' ? 'mergePrimarySearch' : 'mergeDupSearch';
+  const resultsId = which === 'primary' ? 'mergePrimaryResults' : 'mergeDupResults';
+  const query = document.getElementById(inputId).value.trim().toLowerCase();
+  const resultsEl = document.getElementById(resultsId);
+
+  if (query.length < 2) { resultsEl.innerHTML = ''; return; }
+
+  const matches = allSellersData
+    .filter(s => s.seller_name.toLowerCase().includes(query))
+    .slice(0, 6);
+
+  resultsEl.innerHTML = matches.map((s, i) => `
+    <div class="merge-result-item" data-idx="${i}">
+      <div class="seller-mini-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      </div>
+      <div class="seller-mini-info">
+        <div class="seller-mini-name notranslate">${escapeHtml(s.seller_name)}</div>
+      </div>
+    </div>
+  `).join('');
+
+  resultsEl.querySelectorAll('.merge-result-item').forEach((el, i) => {
+    el.addEventListener('click', () => selectMergeCandidate(which, matches[i]));
+  });
+}
+
+function selectMergeCandidate(which, seller) {
+  mergeSelection[which] = seller;
+
+  const inputId    = which === 'primary' ? 'mergePrimarySearch'   : 'mergeDupSearch';
+  const resultsId  = which === 'primary' ? 'mergePrimaryResults'  : 'mergeDupResults';
+  const selectedId = which === 'primary' ? 'mergePrimarySelected' : 'mergeDupSelected';
+
+  document.getElementById(inputId).value = '';
+  document.getElementById(resultsId).innerHTML = '';
+
+  const selectedEl = document.getElementById(selectedId);
+  selectedEl.style.display = 'flex';
+  selectedEl.innerHTML = `
+    <span class="notranslate">${escapeHtml(seller.seller_name)}</span>
+    <button type="button" class="merge-selected-clear" onclick="clearMergeSelection('${which}')">×</button>
+  `;
+}
+
+function clearMergeSelection(which) {
+  mergeSelection[which] = null;
+  const selectedId = which === 'primary' ? 'mergePrimarySelected' : 'mergeDupSelected';
+  document.getElementById(selectedId).style.display = 'none';
+}
+
+async function submitMergeSellers() {
+  const { primary, duplicate } = mergeSelection;
+
+  if (!primary || !duplicate) {
+    setStatus('mergeStatus', 'Pick both a primary seller and a duplicate to merge.', 'warning');
+    return;
+  }
+  if (primary.id === duplicate.id) {
+    setStatus('mergeStatus', 'Pick two different sellers.', 'warning');
+    return;
+  }
+
+  setStatus('mergeStatus', 'Merging…', 'loading');
+
+  try {
+    const res = await fetch('/api/sellers/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ primaryId: primary.id, duplicateId: duplicate.id })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setStatus('mergeStatus', data.error || 'Could not merge. Please try again.', 'error');
+      return;
+    }
+
+    setStatus('mergeStatus', 'Merged! The duplicate is now retired.', 'success');
+    clearMergeSelection('primary');
+    clearMergeSelection('duplicate');
+    loadSellerNames();
+
+  } catch (e) {
+    setStatus('mergeStatus', 'Connection error. Please try again.', 'error');
+  }
+}
+
+/* ════════════════════════════════════════════════
+   ADMIN DASHBOARD (Phase 4)
+════════════════════════════════════════════════ */
+let adminTabsLoaded = { analytics: false, users: false };
+
+function openAdminDashboard() {
+  goTo('adminPage');
+  if (!adminTabsLoaded.analytics) { loadAdminAnalytics(); adminTabsLoaded.analytics = true; }
+}
+
+function switchAdminTab(tab) {
+  document.querySelectorAll('.mod-tab[data-admintab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.admintab === tab);
+  });
+  document.getElementById('adminAnalyticsSection').style.display = tab === 'analytics' ? 'block' : 'none';
+  document.getElementById('adminUsersSection').style.display     = tab === 'users'     ? 'block' : 'none';
+
+  if (tab === 'users' && !adminTabsLoaded.users) { loadAdminUsers(); adminTabsLoaded.users = true; }
+}
+
+async function loadAdminAnalytics() {
+  try {
+    const res = await fetch('/api/admin/analytics', { headers: authHeaders() });
+    if (!res.ok) return;
+    const d = await res.json();
+
+    document.getElementById('analyticsTotalSellers').textContent = d.totalSellers;
+    document.getElementById('analyticsTotalRiders').textContent  = d.totalRiders;
+
+    document.getElementById('analyticsBreakdown').innerHTML = `
+      <div class="admin-stat-row"><span class="admin-stat-row-label notranslate">Verified</span><span class="admin-stat-row-value notranslate">${d.verifiedSellers}</span></div>
+      <div class="admin-stat-row"><span class="admin-stat-row-label notranslate">Pending</span><span class="admin-stat-row-value notranslate">${d.pendingSellers}</span></div>
+      <div class="admin-stat-row"><span class="admin-stat-row-label notranslate">Reported Incorrect</span><span class="admin-stat-row-value notranslate">${d.reportedSellers}</span></div>
+      <div class="admin-stat-row"><span class="admin-stat-row-label notranslate">New This Week</span><span class="admin-stat-row-value notranslate">${d.newSellersThisWeek}</span></div>
+      <div class="admin-stat-row"><span class="admin-stat-row-label notranslate">Total Confirmations</span><span class="admin-stat-row-value notranslate">${d.totalConfirmations}</span></div>
+      <div class="admin-stat-row"><span class="admin-stat-row-label notranslate">Total Photos</span><span class="admin-stat-row-value notranslate">${d.totalPhotos}</span></div>
+      <div class="admin-stat-row"><span class="admin-stat-row-label notranslate">Total Notes</span><span class="admin-stat-row-value notranslate">${d.totalNotes}</span></div>
+      <div class="admin-stat-row"><span class="admin-stat-row-label notranslate">Banned Riders</span><span class="admin-stat-row-value notranslate">${d.bannedRiders}</span></div>
+    `;
+
+    const topEl = document.getElementById('analyticsTopContributors');
+    topEl.innerHTML = (d.topContributors && d.topContributors.length > 0)
+      ? d.topContributors.map(c => `
+          <div class="contrib-list-item">
+            <div class="seller-mini-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div class="contrib-list-info">
+              <div class="contrib-list-name notranslate">${escapeHtml(c.rider_name || c.rider_id)}</div>
+              <div class="contrib-list-date notranslate">${c.seller_count} seller(s) encoded</div>
+            </div>
+          </div>
+        `).join('')
+      : modEmptyState('No contributions yet.');
+
+    document.getElementById('analyticsThresholds').innerHTML = `
+      <div class="admin-stat-row"><span class="admin-stat-row-label notranslate">Confirmations to Verify</span><span class="admin-stat-row-value notranslate">${d.thresholds.confirm}</span></div>
+      <div class="admin-stat-row"><span class="admin-stat-row-label notranslate">Reports to Flag Incorrect</span><span class="admin-stat-row-value notranslate">${d.thresholds.report}</span></div>
+    `;
+
+  } catch (e) { /* silent */ }
+}
+
+async function loadAdminUsers() {
+  const search = document.getElementById('adminUserSearch').value.trim();
+  const el = document.getElementById('adminUsersList');
+  el.innerHTML = modEmptyState('Loading…');
+
+  try {
+    const res = await fetch(`/api/admin/riders?search=${encodeURIComponent(search)}`, { headers: authHeaders() });
+    const riders = res.ok ? await res.json() : [];
+
+    if (riders.length === 0) { el.innerHTML = modEmptyState('No riders found.'); return; }
+
+    el.innerHTML = riders.map(r => `
+      <div class="user-row">
+        <div class="user-row-info">
+          <div class="user-row-name notranslate">${escapeHtml(r.name || 'Rider')}</div>
+          <div class="user-row-meta notranslate">${escapeHtml(r.mobile_number || r.rider_id)} · ${r.credits} credits</div>
+        </div>
+        <select class="user-role-select notranslate" data-rider="${r.rider_id}" ${r.rider_id === currentRiderId ? 'disabled' : ''}>
+          <option value="rider" ${r.role === 'rider' ? 'selected' : ''}>Rider</option>
+          <option value="moderator" ${r.role === 'moderator' ? 'selected' : ''}>Moderator</option>
+          <option value="admin" ${r.role === 'admin' ? 'selected' : ''}>Admin</option>
+        </select>
+        <button type="button" class="user-ban-btn notranslate ${r.is_banned ? 'banned' : ''}" data-rider="${r.rider_id}" data-banned="${r.is_banned}" ${r.rider_id === currentRiderId ? 'disabled' : ''}>
+          ${r.is_banned ? 'Unban' : 'Ban'}
+        </button>
+      </div>
+    `).join('');
+
+    el.querySelectorAll('.user-role-select').forEach(sel => {
+      sel.addEventListener('change', () => changeRiderRole(sel.dataset.rider, sel.value));
+    });
+    el.querySelectorAll('.user-ban-btn').forEach(btn => {
+      btn.addEventListener('click', () => toggleRiderBan(btn.dataset.rider, btn.dataset.banned === 'true'));
+    });
+
+  } catch (e) {
+    el.innerHTML = modEmptyState('Could not load — check your connection.');
+  }
+}
+
+async function changeRiderRole(riderId, role) {
+  try {
+    const res = await fetch(`/api/admin/riders/${encodeURIComponent(riderId)}/role`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ role })
+    });
+    if (!res.ok) { const d = await res.json(); alert(d.error || 'Could not change role.'); }
+  } catch (e) { /* best-effort */ }
+  loadAdminUsers();
+}
+
+async function toggleRiderBan(riderId, currentlyBanned) {
+  try {
+    await fetch(`/api/admin/riders/${encodeURIComponent(riderId)}/ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ banned: !currentlyBanned })
+    });
+  } catch (e) { /* best-effort */ }
+  loadAdminUsers();
+}
+
+/* ════════════════════════════════════════════════
+   MOVE INCORRECT PIN — location correction (Phase 4)
+════════════════════════════════════════════════ */
+let correctionPinMapInstance = null;
+let correctionPinMarker      = null;
+let correctionFinalLat       = null;
+let correctionFinalLng       = null;
+
+function openCorrectionModal() {
+  if (!sheetCurrentSeller || sheetCurrentSeller.latitude == null) return;
+
+  correctionFinalLat = sheetCurrentSeller.latitude;
+  correctionFinalLng = sheetCurrentSeller.longitude;
+  document.getElementById('correctionReasonInput').value = '';
+  document.getElementById('correctionStatus').style.display = 'none';
+
+  document.getElementById('correctionScrim').classList.add('show');
+  document.getElementById('correctionModal').classList.add('show');
+
+  setTimeout(() => {
+    if (!correctionPinMapInstance) {
+      correctionPinMapInstance = L.map('correctionPinMap', { zoomControl: false, attributionControl: false });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(correctionPinMapInstance);
+
+      const pinIcon = L.divIcon({
+        html: `<div style="background:#FF6621;width:20px;height:20px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.35);"></div>`,
+        iconSize: [20, 20], iconAnchor: [10, 20], className: ''
+      });
+
+      correctionPinMarker = L.marker([correctionFinalLat, correctionFinalLng], { draggable: true, icon: pinIcon }).addTo(correctionPinMapInstance);
+      correctionPinMarker.on('dragend', () => {
+        const ll = correctionPinMarker.getLatLng();
+        correctionFinalLat = ll.lat;
+        correctionFinalLng = ll.lng;
+      });
+    } else {
+      correctionPinMarker.setLatLng([correctionFinalLat, correctionFinalLng]);
+    }
+    correctionPinMapInstance.setView([correctionFinalLat, correctionFinalLng], 18);
+    correctionPinMapInstance.invalidateSize();
+  }, 80);
+}
+
+function closeCorrectionModal() {
+  document.getElementById('correctionScrim').classList.remove('show');
+  document.getElementById('correctionModal').classList.remove('show');
+}
+
+async function submitCorrection() {
+  if (!sheetCurrentSeller || correctionFinalLat == null) return;
+
+  const reason = document.getElementById('correctionReasonInput').value.trim();
+  setStatus('correctionStatus', 'Submitting…', 'loading');
+
+  try {
+    const res = await fetch(`/api/sellers/${sheetCurrentSeller.id}/propose-correction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ lat: correctionFinalLat, lng: correctionFinalLng, reason })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setStatus('correctionStatus', data.error || 'Could not submit. Please try again.', 'error');
+      return;
+    }
+
+    setStatus('correctionStatus', 'Submitted for review — thanks!', 'success');
+    setTimeout(closeCorrectionModal, 1200);
+
+  } catch (e) {
+    setStatus('correctionStatus', 'Connection error. Please try again.', 'error');
+  }
+}
+
+/* ════════════════════════════════════════════════
+   AUTH — mobile number + OTP
+════════════════════════════════════════════════ */
+
+/**
+ * Sends (or resends) a code to the entered mobile number.
+ * On first send, navigates to the OTP screen; on resend, stays put.
+ */
+async function requestOtp(isResend = false) {
+  const mobileRaw = isResend
+    ? pendingOtpMobile
+    : document.getElementById('mobileInput').value.trim();
+
+  if (!mobileRaw) {
+    setStatus('phoneStatus', 'Please enter your mobile number.', 'warning');
+    return;
+  }
+
+  const statusEl = isResend ? 'otpStatus' : 'phoneStatus';
+  const btnEl    = document.getElementById(isResend ? 'resendBtn' : 'sendOtpBtn');
+  setStatus(statusEl, 'Sending code…', 'loading');
+  btnEl.disabled = true;
+
+  try {
+    const res  = await fetch('/api/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: mobileRaw })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setStatus(statusEl, data.error || 'Could not send code. Please try again.', 'error');
+      btnEl.disabled = false;
+      return;
+    }
+
+    pendingOtpMobile = data.phone;
+    document.getElementById('otpMobileLabel').textContent = data.phone;
+
+    const devBanner = document.getElementById('devOtpBanner');
+    if (data.devOtp) {
+      document.getElementById('devOtpText').textContent = `Dev mode — your code is ${data.devOtp}`;
+      devBanner.style.display = 'flex';
+      fillOtpBoxes(data.devOtp);
+    } else {
+      devBanner.style.display = 'none';
+    }
+
+    startOtpExpiryCountdown(data.expiresInSeconds || 600); // Twilio Verify's default code validity is 10 minutes
+    startResendCooldown(60); // re-enables resendBtn itself once the cooldown elapses
+
+    if (!isResend) {
+      btnEl.disabled = false; // sendOtpBtn isn't on a cooldown — free to press again once back here
+      clearOtpBoxes();
+      goTo('otpVerifyPage');
+      setTimeout(() => document.querySelector('.otp-digit[data-idx="0"]').focus(), 340);
+    } else {
+      setStatus('otpStatus', 'A new code has been sent.', 'success');
+    }
+
+  } catch (e) {
+    setStatus(statusEl, 'Cannot connect to server. Please try again.', 'error');
+    btnEl.disabled = false;
+  }
+}
+
+/** Verifies the 6-digit code and, on success, starts the session. */
+async function verifyOtp() {
+  const code = Array.from(document.querySelectorAll('.otp-digit'))
+    .map(el => el.value).join('');
+
+  if (code.length !== 6) {
+    setStatus('otpStatus', 'Please enter the full 6-digit code.', 'warning');
+    return;
+  }
+
+  const riderName = document.getElementById('riderNameInput').value.trim();
+  setStatus('otpStatus', 'Verifying…', 'loading');
+
+  try {
+    const res  = await fetch('/api/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone:       pendingOtpMobile,
+        code,
+        name:        riderName,
+        deviceUuid:  getOrCreateDeviceUuid(),
+        deviceModel: getDeviceModel()
+      })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setStatus('otpStatus', data.error || 'Incorrect code. Please try again.', 'error');
+      return;
+    }
+
+    localStorage.setItem(SESSION_KEY, data.token);
+    localStorage.setItem(REFRESH_KEY, data.refreshToken);
+    applyRiderSession(data.rider);
+    setGreeting();
+    showHome();
+    syncNotificationsFromServer();
+
+  } catch (e) {
+    setStatus('otpStatus', 'Cannot connect to server. Please try again.', 'error');
+  }
+}
+
+/** Applies a rider profile (from verify-otp or session restore) to app state + UI. */
+function applyRiderSession(rider) {
+  currentRider   = rider;
+  currentRiderId = rider.rider_id;
+  document.getElementById('lblRiderName').textContent = rider.name;
+  updateCreditUI(rider.credits);
+}
+
+/** Checks localStorage for a saved session on app open and restores it silently. */
+/** Jumps straight to Home with no auth screen ever shown. */
+function jumpStraightToHome(rider) {
+  applyRiderSession(rider);
+  setGreeting();
+
+  document.getElementById('phoneEntryPage').style.display = 'none';
+  document.getElementById('homePage').style.display = 'flex';
+  document.getElementById('homePage').style.opacity = '1';
+  document.getElementById('homePage').style.transform = 'translateY(0)';
+  pageStack.splice(0, pageStack.length, 'homePage');
+  currentTab = 'homePage';
+  updateBottomNavActive('homePage');
+  updateNavVisibility();
+
+  loadSellerNames();
+  loadNearbySellers();
+  renderRecentlyViewed();
+  syncNotificationsFromServer();
+  startGlobalLocationWatch();
+}
+
+/**
+ * Called on every app launch. Tries silent device-trust login first
+ * (no phone number, no OTP) — this is the normal path for a returning
+ * user on a device they've verified before. Falls back to checking a
+ * legacy bare session token for any device that logged in before this
+ * refresh-token upgrade shipped. Only if both come up empty does the
+ * phone-entry screen show at all.
+ */
+async function restoreSessionIfAny() {
+  const deviceUuid   = localStorage.getItem(DEVICE_KEY);
+  const refreshToken = localStorage.getItem(REFRESH_KEY);
+
+  if (deviceUuid && refreshToken) {
+    try {
+      const res = await fetch('/api/auth/device-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceUuid, refreshToken })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem(SESSION_KEY, data.token);
+        localStorage.setItem(REFRESH_KEY, data.refreshToken); // rotated — save the new one
+        jumpStraightToHome(data.rider);
+        return true;
+      }
+
+      // Refresh token is invalid/revoked — clear it so we don't keep retrying,
+      // then fall through to the legacy check below.
+      localStorage.removeItem(REFRESH_KEY);
+
+    } catch (e) {
+      // Network error — don't clear anything, just fall through and try again
+      // next launch. Falling back to the legacy check below still gives this
+      // launch a chance to succeed if an old bare session token is present.
+    }
+  }
+
+  // ── Legacy fallback: a bare session token from before device-trust ──
+  const token = localStorage.getItem(SESSION_KEY);
+  if (!token) return false;
+
+  try {
+    const res = await fetch('/api/auth/session', { headers: authHeaders() });
+    if (!res.ok) { localStorage.removeItem(SESSION_KEY); return false; }
+
+    const data = await res.json();
+    jumpStraightToHome(data.rider);
+    return true;
+
+  } catch (e) {
+    return false;
+  }
+}
+
+async function logoutRider() {
+  try {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ deviceUuid: localStorage.getItem(DEVICE_KEY) })
+    });
+  } catch (e) { /* best-effort */ }
+
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+  /* Deliberately NOT removing DEVICE_KEY — the device identity itself
+     isn't a secret, and keeping it means the next OTP verification on
+     this device re-uses the same trusted_devices row instead of piling
+     up duplicates. */
+  /* Full reload gives every part of the app (map instances, in-memory
+     state, notification cache) a clean slate before showing the
+     phone-entry screen again. */
+  window.location.reload();
+}
+
+/* ── OTP digit boxes: auto-advance, backspace, paste ── */
+function clearOtpBoxes() {
+  document.querySelectorAll('.otp-digit').forEach(el => el.value = '');
+}
+
+function fillOtpBoxes(code) {
+  const boxes = document.querySelectorAll('.otp-digit');
+  String(code).split('').forEach((ch, i) => { if (boxes[i]) boxes[i].value = ch; });
+}
+
+function wireOtpBoxes() {
+  const boxes = Array.from(document.querySelectorAll('.otp-digit'));
+  boxes.forEach((box, i) => {
+    box.addEventListener('input', () => {
+      box.value = box.value.replace(/\D/g, '').slice(0, 1);
+      if (box.value && boxes[i + 1]) boxes[i + 1].focus();
+    });
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !box.value && boxes[i - 1]) boxes[i - 1].focus();
+      if (e.key === 'Enter') verifyOtp();
+    });
+    box.addEventListener('paste', (e) => {
+      const text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+      if (text.length >= 6) { e.preventDefault(); fillOtpBoxes(text.slice(0, 6)); boxes[5].focus(); }
+    });
+  });
+}
+
+function startOtpExpiryCountdown(seconds) {
+  clearInterval(otpExpiryTimer);
+  let remaining = seconds;
+  const label = document.getElementById('otpTimerLabel');
+
+  const tick = () => {
+    const m = Math.floor(remaining / 60);
+    const s = String(remaining % 60).padStart(2, '0');
+    label.textContent = remaining > 0 ? `Code expires in ${m}:${s}` : 'Code expired — request a new one';
+    if (remaining <= 0) clearInterval(otpExpiryTimer);
+    remaining--;
+  };
+  tick();
+  otpExpiryTimer = setInterval(tick, 1000);
+}
+
+function startResendCooldown(seconds) {
+  clearInterval(otpCooldownTimer);
+  const btn = document.getElementById('resendBtn');
+  let remaining = seconds;
+  btn.disabled = true;
+
+  const tick = () => {
+    if (remaining <= 0) {
+      btn.textContent = 'Resend Code';
+      btn.disabled = false;
+      clearInterval(otpCooldownTimer);
+      return;
+    }
+    btn.textContent = `Resend in ${remaining}s`;
+    remaining--;
+  };
+  tick();
+  otpCooldownTimer = setInterval(tick, 1000);
 }
 
 /* ════════════════════════════════════════════════
@@ -1732,7 +4723,8 @@ function getLocation() {
     (pos) => {
       document.getElementById('latitude').value  = pos.coords.latitude.toFixed(7);
       document.getElementById('longitude').value = pos.coords.longitude.toFixed(7);
-      setStatus('encodeStatus', 'Location acquired! Ready to save.', 'success');
+      initEncodePinMap(pos.coords.latitude, pos.coords.longitude);
+      setStatus('encodeStatus', 'Location acquired — drag the pin if it needs adjusting.', 'success');
     },
     () => {
       setStatus('encodeStatus', 'Could not get location. Please allow GPS access.', 'error');
@@ -1742,51 +4734,281 @@ function getLocation() {
 }
 
 /* ════════════════════════════════════════════════
-   SAVE LOCATION TO DATABASE
+   ENCODE — DRAGGABLE PIN MAP (Phase 3)
 ════════════════════════════════════════════════ */
-async function saveToDatabase() {
-  const seller = document.getElementById('sellerName').value.trim();
-  const lat    = document.getElementById('latitude').value;
-  const lng    = document.getElementById('longitude').value;
+let encodePinMapInstance = null;
+let encodePinMarker      = null;
+let encodeFinalLat       = null;
+let encodeFinalLng       = null;
 
-  if (!seller)  { setStatus('encodeStatus', 'Please enter the seller name first.', 'warning'); return; }
-  if (!lat || !lng) { setStatus('encodeStatus', 'Please get your location first.', 'warning'); return; }
+function initEncodePinMap(lat, lng) {
+  encodeFinalLat = lat;
+  encodeFinalLng = lng;
+
+  document.getElementById('encodePinMapWrap').style.display = 'block';
+
+  if (!encodePinMapInstance) {
+    encodePinMapInstance = L.map('encodePinMap', { zoomControl: false, attributionControl: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(encodePinMapInstance);
+
+    const pinIcon = L.divIcon({
+      html: `<div style="background:#FF6621;width:20px;height:20px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.35);"></div>`,
+      iconSize: [20, 20], iconAnchor: [10, 20], className: ''
+    });
+
+    encodePinMarker = L.marker([lat, lng], { draggable: true, icon: pinIcon }).addTo(encodePinMapInstance);
+
+    encodePinMarker.on('dragend', () => {
+      const ll = encodePinMarker.getLatLng();
+      encodeFinalLat = ll.lat;
+      encodeFinalLng = ll.lng;
+      document.getElementById('latitude').value  = ll.lat.toFixed(7);
+      document.getElementById('longitude').value = ll.lng.toFixed(7);
+    });
+  } else {
+    encodePinMarker.setLatLng([lat, lng]);
+  }
+
+  encodePinMapInstance.setView([lat, lng], 18);
+  setTimeout(() => encodePinMapInstance.invalidateSize(), 80);
+}
+
+/* ════════════════════════════════════════════════
+   ENCODE — PHOTO PICKER (Phase 3)
+════════════════════════════════════════════════ */
+let encodePhotos       = []; // { type, dataUrl }
+let pendingPhotoType   = null;
+
+const PHOTO_TYPE_LABELS = {
+  storefront: 'Store Front', gate: 'Gate', entrance: 'Entrance',
+  building: 'Building', signboard: 'Signboard'
+};
+function photoTypeLabel(type) { return PHOTO_TYPE_LABELS[type] || type; }
+
+/** Resizes + JPEG-compresses a photo client-side before upload — keeps
+ *  mobile data usage down for riders on limited data plans. */
+function compressImageFile(file, maxDim = 1280, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width >= height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+          else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('Could not read image'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function pickEncodePhoto(type) {
+  if (encodePhotos.length >= 5) {
+    setStatus('encodeStatus', 'Up to 5 photos — remove one to add another.', 'warning');
+    return;
+  }
+  pendingPhotoType = type;
+  document.getElementById('encodePhotoFileInput').click();
+}
+
+async function handleEncodePhotoFile(fileInput) {
+  const file = fileInput.files && fileInput.files[0];
+  fileInput.value = '';
+  if (!file || !pendingPhotoType) return;
+
+  setStatus('encodeStatus', 'Processing photo…', 'loading');
+  try {
+    const dataUrl = await compressImageFile(file);
+    encodePhotos.push({ type: pendingPhotoType, dataUrl });
+    renderEncodePhotoStrip();
+    setStatus('encodeStatus', 'Photo added.', 'success');
+  } catch (e) {
+    setStatus('encodeStatus', 'Could not process that photo — try another.', 'error');
+  }
+  pendingPhotoType = null;
+}
+
+function removeEncodePhoto(idx) {
+  encodePhotos.splice(idx, 1);
+  renderEncodePhotoStrip();
+}
+
+function renderEncodePhotoStrip() {
+  const strip = document.getElementById('encodePhotoStrip');
+  strip.innerHTML = encodePhotos.map((p, i) => `
+    <div class="photo-thumb-item">
+      <img class="photo-thumb-img" src="${p.dataUrl}">
+      <button type="button" class="photo-thumb-remove" data-idx="${i}">×</button>
+      <div class="photo-thumb-label notranslate">${photoTypeLabel(p.type)}</div>
+    </div>
+  `).join('');
+
+  strip.querySelectorAll('.photo-thumb-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeEncodePhoto(parseInt(btn.dataset.idx, 10));
+    });
+  });
+}
+
+/* ════════════════════════════════════════════════
+   SAVE LOCATION — duplicate check → save → attach photos
+════════════════════════════════════════════════ */
+let pendingEncodeSeller = null; // { seller, lat, lng, landmark }
+
+async function submitEncodeSeller() {
+  const seller   = document.getElementById('sellerName').value.trim();
+  const landmark = document.getElementById('encodeLandmark').value.trim();
+  const lat = encodeFinalLat != null ? encodeFinalLat : parseFloat(document.getElementById('latitude').value);
+  const lng = encodeFinalLng != null ? encodeFinalLng : parseFloat(document.getElementById('longitude').value);
+
+  if (!seller)                    { setStatus('encodeStatus', 'Please enter the seller name first.', 'warning'); return; }
+  if (!lat || !lng)                { setStatus('encodeStatus', 'Please get your location first.', 'warning'); return; }
+  if (!landmark)                   { setStatus('encodeStatus', 'Please add a short landmark note.', 'warning'); return; }
+  if (encodePhotos.length === 0)   { setStatus('encodeStatus', 'Please add at least one store photo.', 'warning'); return; }
+
+  pendingEncodeSeller = { seller, lat, lng, landmark };
+  setStatus('encodeStatus', 'Checking for duplicates…', 'loading');
+
+  try {
+    const res  = await fetch('/api/sellers/check-duplicate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ name: seller, lat, lng })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.candidates && data.candidates.length > 0) {
+      document.getElementById('encodeStatus').style.display = 'none';
+      showDuplicateModal(data.candidates);
+    } else {
+      await saveToDatabase();
+    }
+  } catch (e) {
+    /* Don't let a failed duplicate-check block a rider from saving */
+    await saveToDatabase();
+  }
+}
+
+function showDuplicateModal(candidates) {
+  const list = document.getElementById('dupCandidateList');
+  list.innerHTML = candidates.map((c, i) => `
+    <div class="dup-candidate-item">
+      <div class="seller-mini-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      </div>
+      <div class="seller-mini-info">
+        <div class="seller-mini-name notranslate">${escapeHtml(c.seller_name)}</div>
+        <div class="seller-mini-meta">
+          <span class="notranslate">${c.distanceMeters}m away</span>
+          ${verificationChipHtml(c.verification_status)}
+        </div>
+      </div>
+      <button type="button" class="dup-use-btn notranslate" data-idx="${i}">Use This</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.dup-use-btn').forEach(btn => {
+    btn.addEventListener('click', () => useDuplicateCandidate(candidates[parseInt(btn.dataset.idx, 10)]));
+  });
+
+  document.getElementById('dupScrim').classList.add('show');
+  document.getElementById('duplicateModal').classList.add('show');
+}
+
+function closeDuplicateModal() {
+  document.getElementById('dupScrim').classList.remove('show');
+  document.getElementById('duplicateModal').classList.remove('show');
+}
+
+function useDuplicateCandidate(candidate) {
+  closeDuplicateModal();
+  resetEncodeForm();
+  goBack();
+  setTimeout(() => openSellerSheet(candidate), 340);
+}
+
+async function proceedCreateNewSeller() {
+  closeDuplicateModal();
+  document.getElementById('encodeStatus').style.display = 'flex';
+  await saveToDatabase();
+}
+
+async function saveToDatabase() {
+  if (!pendingEncodeSeller) return;
+  const { seller, lat, lng, landmark } = pendingEncodeSeller;
 
   setStatus('encodeStatus', 'Saving to database…', 'loading');
 
   try {
     const res  = await fetch('/api/save-location', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seller, lat, lng, riderId: currentRiderId })
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ seller, lat, lng, landmark })
     });
     const data = await res.json();
 
-    if (res.ok) {
-      document.getElementById('successModal').classList.add('show');
-      setStatus('encodeStatus', 'Saved! Ready to encode another.', 'success');
-      updateCreditUI(data.totalCredits);
-
-      /* The server creates + broadcasts the notification to all riders;
-         use that exact object so this device's copy matches everyone
-         else's (dedup-safe). Fall back to a local one for older backends. */
-      if (data.notification) {
-        handleIncomingNotification(data.notification);
-      } else {
-        addNotification(seller);
-      }
-
-      document.getElementById('sellerName').value  = '';
-      document.getElementById('latitude').value    = '';
-      document.getElementById('longitude').value   = '';
-
-      loadSellerNames();
-    } else {
+    if (!res.ok) {
       setStatus('encodeStatus', data.error || 'Error saving. Please try again.', 'error');
+      return;
     }
+
+    updateCreditUI(data.totalCredits);
+
+    /* The server creates + broadcasts the notification to all riders;
+       use that exact object so this device's copy matches everyone
+       else's (dedup-safe). Fall back to a local one for older backends. */
+    if (data.notification) {
+      handleIncomingNotification(data.notification);
+    } else {
+      addNotification(seller);
+    }
+
+    /* Attach photos to the newly created seller (best-effort, sequential
+       so we don't fire five uploads at once on a mobile connection) */
+    if (data.seller && data.seller.id && encodePhotos.length > 0) {
+      for (let i = 0; i < encodePhotos.length; i++) {
+        setStatus('encodeStatus', `Uploading photo ${i + 1} of ${encodePhotos.length}…`, 'loading');
+        try {
+          await fetch(`/api/sellers/${data.seller.id}/photos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ photoType: encodePhotos[i].type, dataUrl: encodePhotos[i].dataUrl })
+          });
+        } catch (e) { /* best-effort — the seller itself is already saved */ }
+      }
+    }
+
+    document.getElementById('successModal').classList.add('show');
+    setStatus('encodeStatus', 'Saved! Ready to encode another.', 'success');
+    resetEncodeForm();
+    loadSellerNames();
+
   } catch(e) {
     setStatus('encodeStatus', 'Connection error. Please try again.', 'error');
   }
+}
+
+function resetEncodeForm() {
+  document.getElementById('sellerName').value     = '';
+  document.getElementById('latitude').value       = '';
+  document.getElementById('longitude').value      = '';
+  document.getElementById('encodeLandmark').value = '';
+  document.getElementById('encodePinMapWrap').style.display = 'none';
+  encodeFinalLat = null;
+  encodeFinalLng = null;
+  encodePhotos = [];
+  renderEncodePhotoStrip();
+  pendingEncodeSeller = null;
 }
 
 function closeModal() {
@@ -1867,7 +5089,8 @@ function searchSeller() {
 
     try {
       const res  = await fetch(
-        `/api/search-seller?name=${encodeURIComponent(searchName)}&riderId=${encodeURIComponent(currentRiderId)}`
+        `/api/search-seller?name=${encodeURIComponent(searchName)}`,
+        { headers: authHeaders() }
       );
       const data = await res.json();
 
@@ -2247,23 +5470,48 @@ window.addEventListener('storage', (e) => {
 /* ════════════════════════════════════════════════
    DOM READY
 ════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   setGreeting();
 
-  /* Enter key on login */
-  ['riderIdInput', 'riderNameInput'].forEach(id => {
+  /* Enter key on phone entry */
+  ['mobileInput', 'riderNameInput'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') loginRider(); });
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') requestOtp(); });
   });
+
+  wireOtpBoxes();
 
   /* Enter key on search */
   const si = document.getElementById('searchSeller');
   if (si) si.addEventListener('keydown', e => { if (e.key === 'Enter') searchSeller(); });
 
+  /* Photo pickers (Phase 3) */
+  const encodeFileInput = document.getElementById('encodePhotoFileInput');
+  if (encodeFileInput) encodeFileInput.addEventListener('change', () => handleEncodePhotoFile(encodeFileInput));
+
+  const sheetFileInput = document.getElementById('sheetPhotoFileInput');
+  if (sheetFileInput) sheetFileInput.addEventListener('change', () => handleSheetPhotoFile(sheetFileInput));
+
+  wireMergeSearch();
+
+  const adminSearchInput = document.getElementById('adminUserSearch');
+  if (adminSearchInput) {
+    let adminSearchTimer = null;
+    adminSearchInput.addEventListener('input', () => {
+      clearTimeout(adminSearchTimer);
+      adminSearchTimer = setTimeout(loadAdminUsers, 350);
+    });
+  }
+
   /* Notifications: restore badge from persisted notifications, and
      attempt real-time sync with other connected riders */
   updateNotifBadge();
   initNotificationSocket();
+
+  /* Auth: silently restore an existing session, if any, then arm the
+     Android back-button guard once the initial screen is settled. */
+  await restoreSessionIfAny();
+  primeBackGuard();
 });
 
 </script>

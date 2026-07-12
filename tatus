@@ -1,0 +1,54 @@
+[33m550bd3a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Remove .env from repository
+[33m40f5c58[m Ignore .env
+[33md5a76bb[m full redesign sfd
+[33m02ae311[m[33m ([m[1;31morigin/main[m[33m)[m Update file icons
+[33m7b755b3[m Update files manifest
+[33m77af202[m Update files manifest
+[33ma156e5b[m Fix: Add supabase and ensure production dependencies
+[33mea51a34[m Fix: add cors to dependencies
+[33m50fd235[m Fix: add express to dependencies
+[33m6a8d5f2[m Update files
+[33m3bc47ee[m Update files
+[33md04ac5c[m[33m ([m[1;31morigin/master[m[33m)[m Update project
+[33ma5d5e4d[m Add files via upload
+[33mf802d28[m Delete index.html
+[33mc2217ac[m Rename index(9).html to index.html
+[33m8f76817[m Delete index.html
+[33me8572fe[m Add files via upload
+[33m78dc407[m Rename index-4.html to index.html
+[33m1c90bad[m Add files via upload
+[33mecaed93[m Delete index.html
+[33mc729c83[m Create server.js
+[33me15a363[m Delete server.js
+[33m6197a9f[m Add files via upload
+[33mdb13083[m Delete server.js
+[33m83f194c[m Rename index-3.html to index.html
+[33m81beab9[m Add files via upload
+[33m020af9b[m Delete index.html
+[33m413980f[m Rename index-2.html to index.html
+[33m28b325b[m Add files via upload
+[33mfdf4117[m Delete index.html
+[33mfdf8972[m Create index.html
+[33m6460b3d[m Delete index.html
+[33m64f6702[m Update index.html
+[33mcedbefd[m Create index.html
+[33m0dc55ec[m Delete index.html
+[33m533dd12[m Create index.html
+[33ma5d2c9f[m Delete index.html
+[33mc922338[m Create index.html
+[33me40f552[m Delete index.html
+[33m43c6fcd[m Create index.html
+[33m0301e3b[m Delete index.html
+[33m75e3d93[m Create index.html
+[33mab52a83[m Delete index.html
+[33m6149d15[m Update index.html
+[33mbffda35[m Update server.js
+[33mc4fdd94[m Update index.html
+[33ma737337[m Update index.html
+[33mb6ee941[m Update package.json
+[33m7af1812[m Update index.html
+[33m8be62e8[m Update package.json
+[33m67ad773[m Update server.js
+[33ma6f6259[m Create package.json
+[33mf847c08[m Create index.html
+[33ma1ade9c[m Create server.js
